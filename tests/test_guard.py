@@ -16,14 +16,14 @@ def matches(text: str) -> bool:
     return any(p.search(text) for p in guard.SECRET_PATTERNS)
 
 
-@pytest.mark.parametrize(
-    "line",
-    [
-        "GEMINI_API_KEY=AIzaSyA1234567890abcdefghijklmnopqrstuvw",  # Google: AIza + 35 chars
-        "key = 'sk-ant-api03-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'",  # Anthropic
-        "api_key: 0123456789abcdef0123456789abcdef0123",  # generic long token on a key name
-    ],
-)
+# Built at runtime so the key shapes never appear literally in source, where the commit guard
+# itself and push protection would flag them.
+GOOGLE_SHAPE = "GEMINI_API_KEY=" + "AI" + "za" + "A" * 35
+ANTHROPIC_SHAPE = "key = '" + "sk-" + "ant-" + "x" * 30 + "'"
+GENERIC_SHAPE = "api_key: " + "0123456789abcdef" * 2 + "0123"
+
+
+@pytest.mark.parametrize("line", [GOOGLE_SHAPE, ANTHROPIC_SHAPE, GENERIC_SHAPE])
 def test_secret_patterns_catch_real_shapes(line: str) -> None:
     assert matches(line)
 

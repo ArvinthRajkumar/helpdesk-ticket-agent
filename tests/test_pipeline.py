@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 import pytest
-from dotenv import load_dotenv
 
 from ticket_agent.audit import completed_ids, read_log
 from ticket_agent.cli import main
@@ -186,6 +185,8 @@ def test_dotenv_is_loaded_without_overriding_the_environment(tmp_path: Path, mon
     # The key from .env satisfies the check, so we get past it to the resume error.
     with pytest.raises(SystemExit, match="No audit log"):
         main(["run", "--resume", "nope"])
+    # An exported variable wins over .env: main must pass override=False.
     monkeypatch.setenv("GEMINI_API_KEY", "exported-wins")
-    load_dotenv(tmp_path / ".env", override=False)
+    with pytest.raises(SystemExit, match="No audit log"):
+        main(["run", "--resume", "nope"])
     assert os.environ["GEMINI_API_KEY"] == "exported-wins"
