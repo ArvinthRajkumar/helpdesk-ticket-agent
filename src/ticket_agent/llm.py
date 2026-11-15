@@ -87,6 +87,8 @@ class GeminiClient:
     def __init__(self, max_rpm: int, retry_attempts: int) -> None:
         # The SDK does the exponential backoff on 429 and 503. Only a failure after these
         # attempts reaches the caller, so backoff never counts as a ticket failure.
+        # attempts includes the first request. With the defaults below a call that keeps
+        # failing waits about 2 + 4 + 8 + 16 seconds plus jitter, so at most half a minute.
         retry = types.HttpRetryOptions(
             attempts=retry_attempts,
             initial_delay=2.0,
@@ -152,6 +154,12 @@ def fake_response(
             thoughts_token_count=thinking_tokens or None,
         ),
     )
+
+
+def fake_api_error(status: int) -> errors.APIError:
+    """What the SDK raises after its own retries. Lives here so tests never import the SDK."""
+    cls = errors.ServerError if status >= 500 else errors.ClientError
+    return cls(status, {"error": {"message": "fake"}})
 
 
 class FakeClient:

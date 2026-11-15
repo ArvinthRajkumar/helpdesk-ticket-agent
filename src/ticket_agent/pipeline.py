@@ -15,8 +15,13 @@ from ticket_agent.triage import run_triage
 
 def require_credentials() -> None:
     """Fail before creating a run directory. Only checks presence, never reads the value."""
-    if not os.environ.get("GEMINI_API_KEY"):
+    # The SDK also reads GOOGLE_API_KEY and prefers it when both are set, which would let a
+    # stale shell variable silently win over .env. Accept either, refuse both.
+    names = [n for n in ("GEMINI_API_KEY", "GOOGLE_API_KEY") if os.environ.get(n)]
+    if not names:
         sys.exit("GEMINI_API_KEY is not set. Put it in .env or export it. See .env.example.")
+    if len(names) == 2:
+        sys.exit("Both GEMINI_API_KEY and GOOGLE_API_KEY are set. Unset one of them.")
 
 
 def _usage(calls: list[Call], pricing: dict) -> dict:

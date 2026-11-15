@@ -1,7 +1,8 @@
 import pytest
+from pydantic import ValidationError
 
 from ticket_agent.models import Decision, Draft, Route, TriageResult
-from ticket_agent.policy import decide, decide_with_draft, load_config
+from ticket_agent.policy import Config, decide, decide_with_draft, load_config
 
 CFG = load_config()
 
@@ -100,6 +101,14 @@ def test_decide_with_draft_leaves_non_candidates_alone() -> None:
 
 
 def test_env_overrides_model(monkeypatch) -> None:
-    monkeypatch.setenv("TICKET_AGENT_TRIAGE_MODEL", "claude-sonnet-5-5")
-    assert load_config().models.triage == "claude-sonnet-5-5"
+    monkeypatch.setenv("TICKET_AGENT_TRIAGE_MODEL", "gemini-3.8-flash")
+    assert load_config().models.triage == "gemini-3.8-flash"
     assert load_config().models.draft == CFG.models.draft
+
+
+def test_throttle_and_retry_bounds_are_enforced() -> None:
+    raw = CFG.model_dump()
+    with pytest.raises(ValidationError):
+        Config.model_validate({**raw, "max_rpm": 0})
+    with pytest.raises(ValidationError):
+        Config.model_validate({**raw, "retry_attempts": 0})

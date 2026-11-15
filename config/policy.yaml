@@ -21,7 +21,8 @@ max_tokens:
 # Client-side throttle. Free-tier limits are per project and only visible in AI Studio, so
 # this stays conservative. Raise it on the paid tier.
 max_rpm: 10
-# SDK attempts for 429 and 503 with exponential backoff. These never count as a ticket failure.
+# SDK attempts for 429 and 503 with exponential backoff, counting the first request, so 5
+# means up to four retries. These never count as a ticket failure.
 retry_attempts: 5
 
 # A run stops after this many consecutive triage failures. A wrong model id or key fails

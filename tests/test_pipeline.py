@@ -5,11 +5,10 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
-from google.genai import errors
 
 from ticket_agent.audit import completed_ids, read_log
 from ticket_agent.cli import main
-from ticket_agent.llm import FakeClient
+from ticket_agent.llm import FakeClient, fake_api_error
 from ticket_agent.models import Ticket
 from ticket_agent.pipeline import run_pipeline
 from ticket_agent.policy import load_config
@@ -18,7 +17,7 @@ CFG = load_config()
 
 
 def api_down() -> Exception:
-    return errors.ServerError(503, {"error": {"message": "overloaded"}})
+    return fake_api_error(503)
 
 
 def triage_json(**kw) -> str:
@@ -160,6 +159,14 @@ def test_resume_of_unknown_run_exits(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("GEMINI_API_KEY", "present-but-never-used")
     with pytest.raises(SystemExit, match="No audit log"):
         main(["run", "--resume", "nope"])
+
+
+def test_both_key_names_set_is_refused(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("ticket_agent.cli.ROOT", tmp_path)
+    monkeypatch.setenv("GEMINI_API_KEY", "one")
+    monkeypatch.setenv("GOOGLE_API_KEY", "two")
+    with pytest.raises(SystemExit, match="Both GEMINI_API_KEY and GOOGLE_API_KEY"):
+        main(["run", "--limit", "1"])
 
 
 def test_missing_key_fails_fast_before_any_run_dir(tmp_path: Path, monkeypatch) -> None:

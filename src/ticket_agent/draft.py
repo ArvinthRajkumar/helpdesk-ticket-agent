@@ -73,7 +73,8 @@ def run_draft(
 ) -> DraftStep:
     kb = kb or load_kb()
     version, rules = load_prompt(PROMPT_PATH)
-    # KB goes in the system prompt so the long, stable part is the cacheable prefix.
+    # KB goes in the system instruction: the stable part first, the ticket after it. No explicit
+    # cache is created; the log's cached_tokens shows whether Google's implicit cache fired.
     system = rules + "\n\n# Knowledge base\n\n" + "\n\n".join(kb.values())
     user = (
         "Draft a reply to the question in this ticket, or mark it not covered.\n\n"

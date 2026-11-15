@@ -2,9 +2,15 @@ import json
 from pathlib import Path
 
 import pytest
-from google.genai import errors
 
-from ticket_agent.llm import FakeClient, Throttle, fake_response, load_prompt, structured_call
+from ticket_agent.llm import (
+    FakeClient,
+    Throttle,
+    fake_api_error,
+    fake_response,
+    load_prompt,
+    structured_call,
+)
 from ticket_agent.models import TriageResult
 
 VALID = {
@@ -57,10 +63,10 @@ def test_two_failures_give_schema_error() -> None:
 
 
 def test_api_errors_are_recorded_with_status_not_raised() -> None:
-    out = call(FakeClient([errors.ServerError(503, {"error": {"message": "busy"}})]))
+    out = call(FakeClient([fake_api_error(503)]))
     assert out.parsed is None and out.calls == []
     assert out.error == "api_error: ServerError status=503"
-    out = call(FakeClient([errors.ClientError(400, {"error": {"message": "bad"}})]))
+    out = call(FakeClient([fake_api_error(400)]))
     assert out.error == "api_error: ClientError status=400"
 
 

@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ticket_agent.models import (
     ROOT,
@@ -45,8 +45,8 @@ class Config(BaseModel):
     max_tokens: MaxTokens
     thinking_level: str
     thinking_level_by_model: dict[str, str] = {}
-    max_rpm: int
-    retry_attempts: int
+    max_rpm: int = Field(gt=0)  # zero would divide by zero in the throttle
+    retry_attempts: int = Field(ge=1)  # counts the first request, so 1 means no retry
     max_consecutive_failures: int
     routing: Routing
 
