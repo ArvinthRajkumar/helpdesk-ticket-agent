@@ -21,6 +21,8 @@ def cmd_run(args: argparse.Namespace) -> None:
     cfg = load_config()
     tickets = load_tickets(Path(args.tickets))[: args.limit]
     run_id = args.resume or datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    if args.resume and not (RUNS_DIR / run_id / "audit.jsonl").exists():
+        sys.exit(f"No audit log under runs/{run_id}. Check the run id.")
     summary = run_pipeline(
         tickets, AnthropicClient(), cfg, RUNS_DIR / run_id, resume=bool(args.resume)
     )

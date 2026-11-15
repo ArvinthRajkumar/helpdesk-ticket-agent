@@ -4,6 +4,7 @@ from pathlib import Path
 
 import anthropic
 import httpx2
+import pytest
 
 from ticket_agent.audit import completed_ids, read_log
 from ticket_agent.cli import main
@@ -138,3 +139,22 @@ def test_run_stops_after_consecutive_failures_and_resume_continues(tmp_path: Pat
     fixed = FakeClient([triage_json(category="bug", summary="s")])
     summary = run_pipeline(many, fixed, CFG, run_dir, resume=True)
     assert summary["tickets"] == 4 and fixed.calls[0]["user"].count('<ticket id="D">') == 1
+
+
+def test_truncated_last_log_line_is_dropped_and_resume_redoes_ticket(tmp_path: Path) -> None:
+    run_dir = tmp_path / "r6"
+    client = FakeClient([triage_json(category="bug", summary="s")])
+    run_pipeline(TICKETS[:1], client, CFG, run_dir, resume=False)
+    with (run_dir / "audit.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write('{"run_id": "r6", "ticket_id": "B", "step": "tri')  # crash mid-write
+    assert completed_ids(read_log(run_dir)) == {"A"}
+    second = FakeClient([triage_json(category="bug", summary="s")])
+    run_pipeline(TICKETS[:2], second, CFG, run_dir, resume=True)
+    assert len(second.calls) == 1 and completed_ids(read_log(run_dir)) == {"A", "B"}
+
+
+def test_resume_of_unknown_run_exits(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("ticket_agent.cli.RUNS_DIR", tmp_path)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "present-but-never-used")
+    with pytest.raises(SystemExit, match="No audit log"):
+        main(["run", "--resume", "nope"])

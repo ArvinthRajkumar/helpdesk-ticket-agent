@@ -32,6 +32,12 @@ class AuditLog:
     def __init__(self, run_dir: Path) -> None:
         run_dir.mkdir(parents=True, exist_ok=True)
         self.path = run_dir / "audit.jsonl"
+        if self.path.exists() and not self.path.read_text(encoding="utf-8").endswith("\n"):
+            # A crash mid-write left a half line. Cut it so the next record starts clean; the
+            # ticket it belonged to has no decision record and will be redone.
+            lines = self.path.read_text(encoding="utf-8").splitlines(keepends=True)[:-1]
+            self.path.write_text("".join(lines), encoding="utf-8")
+            print(f"warning: removed truncated last line of {self.path}")
 
     def write(self, record: dict) -> None:
         # Open, append, close per record: a crash mid-run leaves every earlier line intact.
@@ -43,10 +49,18 @@ def read_log(run_dir: Path) -> list[dict]:
     path = run_dir / "audit.jsonl"
     if not path.exists():
         return []
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
     records = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip():
+    for i, line in enumerate(lines):
+        try:
             records.append(json.loads(line))
+        except json.JSONDecodeError:
+            # A crash mid-write can leave a half line at the end. Dropping it is safe because
+            # the ticket has no decision record and will be redone. Anywhere else it is corruption.
+            if i == len(lines) - 1:
+                print(f"warning: dropping truncated last line of {path}")
+                continue
+            raise
     return records
 
 
@@ -110,5 +124,6 @@ def write_views(run_dir: Path, records: list[dict]) -> dict:
 
 
 def latest_run_dir() -> Path | None:
-    runs = sorted(p for p in RUNS_DIR.iterdir() if p.is_dir() and (p / "audit.jsonl").exists())
-    return runs[-1] if runs else None
+    """Most recently written run, by log mtime, so eval dirs do not shadow newer plain runs."""
+    logs = sorted(RUNS_DIR.glob("*/audit.jsonl"), key=lambda p: p.stat().st_mtime)
+    return logs[-1].parent if logs else None
