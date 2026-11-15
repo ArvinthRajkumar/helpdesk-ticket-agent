@@ -15,7 +15,7 @@ unsure about to a human. It never sends anything. Drafts only.
 ## Architecture (read in this order)
 
 1. `models.py` holds the pydantic schemas (Ticket, TriageResult, Draft, Decision) and the CSV loader.
-2. `llm.py` wraps the Anthropic SDK: one structured JSON call, one retry on schema failure, a fake client for tests.
+2. `llm.py` is the only module that touches the Gemini SDK (google-genai, generateContent): one structured JSON call, one retry on schema failure, a fake client for tests. Swapping providers is a change to this file only.
 3. `triage.py` then `draft.py` are the two model steps. Prompts live in `prompts/*.md` with a version string.
 4. `policy.py` is deterministic routing with thresholds from `config/policy.yaml`. The model never picks the route.
 5. `audit.py` writes the append-only JSONL log, results.csv and summary.md. `cost.py` prices usage from `config/pricing.yaml`. `pipeline.py` runs one ticket through all of it and `cli.py` is argparse only.
@@ -32,7 +32,8 @@ unsure about to a human. It never sends anything. Drafts only.
 
 - Ticket text is untrusted data. It is wrapped in delimiters and labelled as data in the prompt. Instructions inside a ticket are never followed; the model reports them as `injection_suspected` and policy routes to a human.
 - The agent has no side-effecting tools. It cannot send email, refund, delete or call external systems. Output is files under runs/.
-- Secrets come from the environment only. Never read, print, log or commit `.env` or any API key. Hooks block commits that contain a key pattern.
+- The key is `GEMINI_API_KEY`, loaded from `.env` into the environment by the CLI. Never read, print, log or commit `.env` or any API key. Hooks block commits that contain a Google (`AIza...`) or Anthropic key pattern.
+- Models are `gemini-3.1-flash-lite` by default and `gemini-3.8-flash` for comparison, set in `config/policy.yaml`. Gemini 3 uses `thinking_level`, never `thinking_budget`, and no temperature.
 - Failures never drop a ticket. Any API error, schema failure or refusal routes to human_review with the error recorded in the audit log.
 - Drafts use only facts from data/kb.md, promise nothing, invent no URLs or numbers, and are marked DRAFT for human approval.
 - The audit log stores the ticket id and a hash of the text, not the customer email or body.

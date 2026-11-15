@@ -10,9 +10,11 @@ import re
 import subprocess
 import sys
 
-# Anthropic keys start with sk-ant-. The generic pattern catches other long tokens
-# assigned to key-like names. False positives are cheap: the user sees the reason.
+# Google API keys are AIza plus 35 URL-safe characters, Anthropic keys start with sk-ant-.
+# The generic pattern catches other long tokens assigned to key-like names. False positives
+# are cheap: the user sees the reason.
 SECRET_PATTERNS = [
+    re.compile(r"AIza[0-9A-Za-z_-]{35}"),
     re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}"),
     re.compile(r"(?i)(api[_-]?key|secret|token)\s*[=:]\s*['\"]?[A-Za-z0-9_-]{32,}"),
 ]
