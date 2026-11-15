@@ -14,6 +14,10 @@ max_tokens:
   triage: 2048
   draft: 2048
 
+# A run stops after this many consecutive triage failures. A wrong model id or key fails
+# every ticket the same way and there is no point paying for 30 of them.
+max_consecutive_failures: 3
+
 routing:
   # Drafts and queue routing only for languages the team can review quickly.
   allowed_languages: [en]

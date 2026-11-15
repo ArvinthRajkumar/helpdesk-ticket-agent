@@ -2,6 +2,9 @@ import csv
 import json
 from pathlib import Path
 
+import anthropic
+import httpx2
+
 from ticket_agent.audit import completed_ids, read_log
 from ticket_agent.cli import main
 from ticket_agent.llm import FakeClient
@@ -10,6 +13,11 @@ from ticket_agent.pipeline import run_pipeline
 from ticket_agent.policy import load_config
 
 CFG = load_config()
+
+
+def api_down() -> Exception:
+    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    return anthropic.APIConnectionError(request=req)
 
 
 def triage_json(**kw) -> str:
@@ -44,7 +52,7 @@ def test_pipeline_writes_log_views_and_never_drops_a_ticket(tmp_path: Path) -> N
             triage_json(),  # A: question -> draft
             DRAFT_OK,
             triage_json(category="bug", priority="urgent", summary="Outage."),  # B: team
-            ConnectionError("down"),  # C: API error -> human_review
+            api_down(),  # C: API error -> human_review
         ]
     )
     summary = run_pipeline(TICKETS, client, CFG, tmp_path / "r1", resume=False)
@@ -58,7 +66,7 @@ def test_pipeline_writes_log_views_and_never_drops_a_ticket(tmp_path: Path) -> N
     assert [r["ticket_id"] for r in rows] == ["A", "B", "C"]
     assert rows[0]["draft"].startswith("DRAFT (needs human approval")
     assert rows[1]["queue"] == "engineering"
-    assert rows[2]["rule"] == "triage_failed" and "ConnectionError" in rows[2]["human_reason"]
+    assert rows[2]["rule"] == "triage_failed" and "APIConnectionError" in rows[2]["human_reason"]
 
     summary_md = (tmp_path / "r1" / "summary.md").read_text(encoding="utf-8")
     assert "Automation rate (not human_review): 67%" in summary_md
@@ -117,3 +125,16 @@ def test_model_free_text_is_scrubbed_before_logging(tmp_path: Path) -> None:
     csv_text = (tmp_path / "r4" / "results.csv").read_text(encoding="utf-8")
     assert "anna.devries@example.com" not in log_text + csv_text
     assert "[email] cannot log in." in log_text
+
+
+def test_run_stops_after_consecutive_failures_and_resume_continues(tmp_path: Path) -> None:
+    run_dir = tmp_path / "r5"
+    broken = FakeClient([api_down(), api_down(), api_down(), api_down()])
+    many = TICKETS + [Ticket(id="D", subject="d", body="d")]
+    summary = run_pipeline(many, broken, CFG, run_dir, resume=False)
+    assert summary["tickets"] == CFG.max_consecutive_failures == 3
+    assert len(broken.replies) == 1  # the fourth call was never made
+
+    fixed = FakeClient([triage_json(category="bug", summary="s")])
+    summary = run_pipeline(many, fixed, CFG, run_dir, resume=True)
+    assert summary["tickets"] == 4 and fixed.calls[0]["user"].count('<ticket id="D">') == 1

@@ -138,11 +138,18 @@ def structured_call(
                 max_tokens=max_tokens,
                 effort=effort,
             )
-        except Exception as exc:  # noqa: BLE001  A ticket is never dropped: record and move on.
-            return Outcome(None, f"api_error: {type(exc).__name__}", calls)
+        except anthropic.APIError as exc:
+            # SDK errors become a recorded error so the ticket routes to a human. Anything
+            # else is a bug in this code and should crash loudly; resume picks up afterwards.
+            status = getattr(exc, "status_code", None)
+            detail = f" status={status}" if status else ""
+            return Outcome(None, f"api_error: {type(exc).__name__}{detail}", calls)
         calls.append(call)
         if call.stop_reason == "refusal":
             return Outcome(None, "refusal: model declined the request", calls)
+        if call.stop_reason == "max_tokens":
+            # Retrying with the same budget would truncate again, so stop here.
+            return Outcome(None, "max_tokens: output truncated, raise max_tokens in config", calls)
         try:
             return Outcome(schema_model.model_validate_json(call.text), None, calls)
         except ValidationError as exc:

@@ -1,6 +1,10 @@
 import json
 from pathlib import Path
 
+import anthropic
+import httpx2
+import pytest
+
 from ticket_agent.llm import FakeClient, api_schema, load_prompt, structured_call
 from ticket_agent.models import TriageResult
 
@@ -53,11 +57,33 @@ def test_two_failures_give_schema_error() -> None:
     assert len(out.calls) == 2
 
 
-def test_api_exception_is_recorded_not_raised() -> None:
-    out = call(FakeClient([ConnectionError("boom")]))
-    assert out.parsed is None
-    assert out.error == "api_error: ConnectionError"
-    assert out.calls == []
+def test_api_errors_are_recorded_with_status_not_raised() -> None:
+    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    out = call(FakeClient([anthropic.APIConnectionError(request=req)]))
+    assert out.parsed is None and out.calls == []
+    assert out.error == "api_error: APIConnectionError"
+    bad = anthropic.BadRequestError("bad", response=httpx2.Response(400, request=req), body=None)
+    out = call(FakeClient([bad]))
+    assert out.error == "api_error: BadRequestError status=400"
+
+
+def test_programming_errors_propagate() -> None:
+    with pytest.raises(TypeError):
+        call(FakeClient([TypeError("bug in our code")]))
+
+
+def test_max_tokens_is_terminal_without_retry() -> None:
+    client = FakeClient(['{"partial": tru', json.dumps(VALID)])
+    original = client.complete
+
+    def truncated(**kwargs):
+        c = original(**kwargs)
+        c.stop_reason = "max_tokens"
+        return c
+
+    client.complete = truncated  # type: ignore[method-assign]
+    out = call(client)
+    assert out.error.startswith("max_tokens") and len(out.calls) == 1
 
 
 def test_refusal_stops_without_retry() -> None:

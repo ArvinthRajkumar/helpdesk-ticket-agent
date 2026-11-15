@@ -44,6 +44,7 @@ class Config(BaseModel):
     models: Models
     max_tokens: MaxTokens
     effort: str
+    max_consecutive_failures: int
     routing: Routing
 
 

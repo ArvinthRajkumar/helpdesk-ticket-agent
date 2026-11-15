@@ -111,9 +111,16 @@ def run_pipeline(
     pricing = load_pricing()
     log = AuditLog(run_dir)
     done = completed_ids(read_log(run_dir)) if resume else set()
+    failures = 0
     for ticket in tickets:
         if ticket.id in done:
             continue
         decision = process_ticket(ticket, client, cfg, pricing, log, run_dir.name)
         print(f"{ticket.id}: {decision.route} ({decision.rule})")
+        # A bad model id or key fails every ticket the same way. Stop paying for it early;
+        # the tickets so far are logged and --resume continues from here.
+        failures = failures + 1 if decision.rule == "triage_failed" else 0
+        if failures >= cfg.max_consecutive_failures:
+            print(f"Stopping: {failures} tickets in a row failed triage. Fix the cause and resume.")
+            break
     return write_views(run_dir, read_log(run_dir))
