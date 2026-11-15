@@ -48,15 +48,15 @@ that is not in a file.
 - Read: mean cost per ticket <number>, per 100 tickets <number>, per week at 200 tickets
   <number> (README Results table). Say: measured from the token counts the API returned, priced
   from config/pricing.yaml fetched on 2026-11-15.
-- Say: prompt caching is on for the system prompt; the audit log shows whether it fired.
-  Batch API would halve this and is the first lever at scale.
+- Say: no explicit caching; the audit log records cached_content_token_count, which shows
+  whether Google's implicit cache fired. Batch API would halve this and is the first lever at scale.
 
 ## 4:00 to 5:00  Tradeoffs and next steps
 - Screen: README, "Key choices" then "What I would do with more time".
-- Say: structured outputs instead of a forced tool call and no temperature, because the models
-  reject both. Routing in config, not prompt. Grounding checked by code.
-- Say: honest limits. Synthetic tickets, invented KB, my own rubric, n of 10, labels and agent
-  share a model family.
+- Say: JSON schema output instead of a forced tool call, and no temperature because Google
+  marks it deprecated and ignored. Routing in config, not prompt. Grounding checked by code.
+- Say: honest limits. Synthetic tickets, invented KB, my own rubric, n of 10, labels written
+  by one model family and reviewed by one person.
 - Say the five next steps: real KB with retrieval, larger eval with intervals, confidence
   calibration, Batch API, feedback loop from human corrections.
 - Close: everything a human sees is a draft, every decision has a rule, every number has a file.

@@ -23,9 +23,8 @@ anything. Every decision is logged with the rule that made it.
   else sees prompt in, validated pydantic object plus usage out. The agent started on the
   Anthropic API and the switch to Gemini touched that one file plus config, which is the point.
 - **Models.** `gemini-3.1-flash-lite` for triage and drafting, `gemini-3.8-flash` as the
-  comparison model. Both IDs are listed as stable on Google's models page as of 2026-11-15; I
-  will also confirm them with `client.models.list()` on the first live call. Models live in
-  `config/policy.yaml` with env overrides.
+  comparison model. Both IDs are listed as stable on Google's models page as of 2026-11-15.
+  Models live in `config/policy.yaml` with env overrides.
 - **Structured output.** `response_mime_type` is `application/json` and `response_json_schema`
   is the pydantic model's JSON schema. The schema is never pasted into the prompt. Google
   documents that string length constraints are stripped server side, so pydantic is the only
@@ -114,7 +113,7 @@ Cost is computed from the token counts the API returns: `prompt_token_count` as 
 at the output rate. `cached_content_token_count` is logged but priced as plain input, the
 conservative choice. Prices in `config/pricing.yaml` were read from Google's pricing page on
 2026-11-15 at paid-tier list rates, and cost is reported at those rates even when a run uses
-the free tier; the run summary says which tier was used. `gemini-3.8-flash` is on an
+the free tier; the Results section states which tier a run used. `gemini-3.8-flash` is on an
 introductory price through 2026-12-31 and doubles on 2027-01-01, so its cost per 100 tickets
 is reported for both dates.
 
@@ -138,8 +137,8 @@ is reported for both dates.
 - **PII.** The audit log and results carry the ticket id, a hash of the text and the model's
   one-sentence summary with email addresses scrubbed by code. Not the customer email, not the
   body. Drafts may restate the question.
-- **Cost.** `max_output_tokens` is capped per step, retries are capped at one, and every token
-  including thinking is priced in the log. A run stops after three consecutive triage failures,
+- **Cost.** `max_output_tokens` is capped per step, schema retries are capped at one, transport
+  retries at `retry_attempts`, and every token including thinking is priced in the log. A run stops after three consecutive triage failures,
   so a wrong model id or key does not pay for 30 identical errors.
 
 ## Harness
