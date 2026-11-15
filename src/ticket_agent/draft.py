@@ -6,9 +6,10 @@ promises. Anything that fails is a plain-language problem the policy turns into 
 """
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
-from ticket_agent.llm import Client, load_prompt, structured_call
+from ticket_agent.llm import Call, Client, load_prompt, structured_call
 from ticket_agent.models import ROOT, Draft, Ticket
 from ticket_agent.policy import Config
 from ticket_agent.triage import wrap_ticket
@@ -43,17 +44,33 @@ def check_grounding(draft: Draft, kb: dict[str, str]) -> str | None:
     text = draft.reply.lower()
     if re.search(r"https?://|www\.|@\w+\.\w", text):
         return "draft contains a URL or email address"
-    hit = next((w for w in PROMISE_WORDS if w in text), None)
+    # Entry bodies without the "## KB-xx Title" line, so the id digits do not count as facts.
+    cited = " ".join(kb[k].split("\n", 1)[1] for k in draft.kb_ids).lower()
+    hit = next((w for w in PROMISE_WORDS if w in text and w not in cited), None)
     if hit:
         return f"draft makes a promise ({hit})"
-    cited = " ".join(kb[k] for k in draft.kb_ids)
-    loose = [n for n in re.findall(r"\d+", draft.reply) if n not in cited]
+    loose = sorted(set(re.findall(r"\b\d+\b", text)) - set(re.findall(r"\b\d+\b", cited)))
     if loose:
         return f"draft uses numbers not in the cited KB entries {loose}"
     return None
 
 
-def run_draft(client: Client, ticket: Ticket, cfg: Config, kb: dict[str, str] | None = None):
+@dataclass
+class DraftStep:
+    draft: Draft | None
+    error: str | None  # API, schema or refusal trouble
+    grounding_problem: str | None  # the model answered, code rejected the answer
+    version: str
+    calls: list[Call]
+
+    @property
+    def problem(self) -> str | None:
+        return self.error or self.grounding_problem
+
+
+def run_draft(
+    client: Client, ticket: Ticket, cfg: Config, kb: dict[str, str] | None = None
+) -> DraftStep:
     kb = kb or load_kb()
     version, rules = load_prompt(PROMPT_PATH)
     # KB goes in the system prompt so the long, stable part is the cacheable prefix.
@@ -72,8 +89,8 @@ def run_draft(client: Client, ticket: Ticket, cfg: Config, kb: dict[str, str] | 
         effort=cfg.effort,
     )
     draft = outcome.parsed
-    problem = outcome.error or (check_grounding(draft, kb) if draft else None)
-    return draft, problem, version, outcome.calls
+    grounding = check_grounding(draft, kb) if draft else None
+    return DraftStep(draft, outcome.error, grounding, version, outcome.calls)
 
 
 def present(draft: Draft | None) -> str:

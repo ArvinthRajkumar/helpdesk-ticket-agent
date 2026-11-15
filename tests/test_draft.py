@@ -60,14 +60,32 @@ def test_run_draft_puts_kb_in_system_and_ticket_in_user() -> None:
     }
     client = FakeClient([json.dumps(reply)])
     ticket = Ticket(id="T2", subject="Invoices?", body="Where are my invoices?")
-    d, problem, version, calls = run_draft(client, ticket, load_config(), KB)
-    assert problem is None and d.kb_ids == ["KB-02"] and version == "draft-v1"
+    step = run_draft(client, ticket, load_config(), KB)
+    assert step.problem is None and step.draft.kb_ids == ["KB-02"]
+    assert step.version == "draft-v1"
     sent = client.calls[0]
     assert "## KB-02" in sent["system"] and '<ticket id="T2">' in sent["user"]
-    assert len(calls) == 1
+    assert len(step.calls) == 1
 
 
 def test_present_adds_draft_mark_only_for_real_drafts() -> None:
     assert present(draft()).startswith(DRAFT_MARK)
     assert present(draft(covered_by_kb=False, kb_ids=[], reply="")) == ""
     assert present(None) == ""
+
+
+def test_promise_word_quoted_from_cited_entry_is_allowed() -> None:
+    d = draft(kb_ids=["KB-06"], reply="Hi, instant delivery is not guaranteed. Thanks.")
+    assert check_grounding(d, KB) is None
+
+
+def test_header_digits_do_not_count_as_facts() -> None:
+    # KB-01 has "01" in its header only; a bare 1 in the reply is not grounded by it.
+    assert "numbers" in check_grounding(draft(kb_ids=["KB-01"], reply="Hi, wait 1 day."), KB)
+
+
+def test_grounding_problem_is_not_an_error() -> None:
+    reply = {"covered_by_kb": True, "kb_ids": ["KB-99"], "reply": "Hi."}
+    ticket = Ticket(id="T", subject="s", body="b")
+    step = run_draft(FakeClient([json.dumps(reply)]), ticket, load_config(), KB)
+    assert step.error is None and "unknown KB ids" in step.grounding_problem

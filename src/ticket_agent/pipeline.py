@@ -71,22 +71,23 @@ def process_ticket(
     draft_text = ""
     total_latency = sum(c.latency_ms for c in outcome.calls)
     if decision.route is Route.AUTO_REPLY_DRAFT:
-        draft, problem, dversion, calls = run_draft(client, ticket, cfg)
-        total_latency += sum(c.latency_ms for c in calls)
+        step = run_draft(client, ticket, cfg)
+        total_latency += sum(c.latency_ms for c in step.calls)
         log.write(
             {
                 **base,
                 "step": "draft",
                 "model": cfg.models.draft,
-                "prompt_version": dversion,
-                "output": draft.model_dump() if draft else None,
-                "error": problem,
-                **_usage(calls, pricing),
+                "prompt_version": step.version,
+                "output": step.draft.model_dump() if step.draft else None,
+                "error": step.error,
+                "grounding_problem": step.grounding_problem,
+                **_usage(step.calls, pricing),
             }
         )
-        decision = decide_with_draft(decision, draft, problem)
+        decision = decide_with_draft(decision, step.draft, step.problem)
         if decision.route is Route.AUTO_REPLY_DRAFT:
-            draft_text = present(draft)
+            draft_text = present(step.draft)
     log.write(
         {
             **base,
