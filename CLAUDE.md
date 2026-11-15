@@ -18,7 +18,7 @@ unsure about to a human. It never sends anything. Drafts only.
 2. `llm.py` wraps the Anthropic SDK: one structured JSON call, one retry on schema failure, a fake client for tests.
 3. `triage.py` then `draft.py` are the two model steps. Prompts live in `prompts/*.md` with a version string.
 4. `policy.py` is deterministic routing with thresholds from `config/policy.yaml`. The model never picks the route.
-5. `audit.py` writes the append-only JSONL log, results.csv and summary.md. `cost.py` prices usage from `config/pricing.yaml`. `cli.py` wires it together.
+5. `audit.py` writes the append-only JSONL log, results.csv and summary.md. `cost.py` prices usage from `config/pricing.yaml`. `pipeline.py` runs one ticket through all of it and `cli.py` is argparse only.
 
 ## Conventions
 

@@ -3,9 +3,10 @@ import json
 from pathlib import Path
 
 from ticket_agent.audit import completed_ids, read_log
-from ticket_agent.cli import main, run_pipeline
+from ticket_agent.cli import main
 from ticket_agent.llm import FakeClient
 from ticket_agent.models import Ticket
+from ticket_agent.pipeline import run_pipeline
 from ticket_agent.policy import load_config
 
 CFG = load_config()
