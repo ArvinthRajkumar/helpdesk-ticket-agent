@@ -1,0 +1,22 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+dist/
+
+# run artifacts: only the one sample run is committed, see README
+runs/*
+!runs/.gitkeep
+!runs/sample/
+
+# editors
+.vscode/
+.idea/
