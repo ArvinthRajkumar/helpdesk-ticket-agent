@@ -1,6 +1,6 @@
 # Hand labels for the eval set. Written from ticket text only, BEFORE any agent run.
 # Drafted by Claude Code, status reviewed by the author, no edits.
-# Labeller and agent share a model family, so labelling errors may correlate with agent errors.
+# Labeller (Claude) and agent (Gemini) are different model families, but labels are one reading of ten tickets.
 #
 # Selection logic (deterministic, re-runnable on a new CSV with new labels):
 #   1. Sort tickets by id. Hand-assign a category to every ticket while reading.
