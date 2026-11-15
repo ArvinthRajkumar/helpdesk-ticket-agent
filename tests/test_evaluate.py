@@ -79,7 +79,7 @@ def test_write_report_renders_all_result_files(tmp_path: Path) -> None:
     text = report.read_text(encoding="utf-8")
     assert "| metric | m1 / v1 | m2 / v1 |" in text
     assert text.count("## Per ticket") == 2
-    assert "n is 10" in text
+    assert "n is 1, so one ticket moves every rate by\n100 points" in text
 
 
 @pytest.mark.parametrize(
