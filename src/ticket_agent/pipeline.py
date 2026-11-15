@@ -15,8 +15,8 @@ from ticket_agent.triage import run_triage
 
 def require_credentials() -> None:
     """Fail before creating a run directory. Only checks presence, never reads the value."""
-    if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
-        sys.exit("ANTHROPIC_API_KEY is not set. Export it and retry. See .env.example.")
+    if not os.environ.get("GEMINI_API_KEY"):
+        sys.exit("GEMINI_API_KEY is not set. Put it in .env or export it. See .env.example.")
 
 
 def _usage(calls: list[Call], pricing: dict) -> dict:

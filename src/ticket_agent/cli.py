@@ -6,6 +6,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from ticket_agent.audit import RUNS_DIR, latest_run_dir, read_log
 from ticket_agent.evaluate import cmd_eval
 from ticket_agent.llm import GeminiClient
@@ -51,6 +53,9 @@ def cmd_explain(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    # The repo-root .env is read into the process environment only. A variable already
+    # exported wins, and nothing in this codebase reads, prints or logs the key itself.
+    load_dotenv(ROOT / ".env", override=False)
     parser = argparse.ArgumentParser(prog="ticket-agent")
     sub = parser.add_subparsers(dest="cmd", required=True)
     run = sub.add_parser("run", help="triage every ticket in the CSV")

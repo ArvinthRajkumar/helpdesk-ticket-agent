@@ -1,8 +1,10 @@
 import csv
 import json
+import os
 from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
 from google.genai import errors
 
 from ticket_agent.audit import completed_ids, read_log
@@ -155,6 +157,28 @@ def test_truncated_last_log_line_is_dropped_and_resume_redoes_ticket(tmp_path: P
 
 def test_resume_of_unknown_run_exits(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("ticket_agent.cli.RUNS_DIR", tmp_path)
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "present-but-never-used")
+    monkeypatch.setenv("GEMINI_API_KEY", "present-but-never-used")
     with pytest.raises(SystemExit, match="No audit log"):
         main(["run", "--resume", "nope"])
+
+
+def test_missing_key_fails_fast_before_any_run_dir(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("ticket_agent.cli.ROOT", tmp_path)  # no .env here
+    monkeypatch.setattr("ticket_agent.cli.RUNS_DIR", tmp_path / "runs")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with pytest.raises(SystemExit, match="GEMINI_API_KEY is not set"):
+        main(["run", "--limit", "1"])
+    assert not (tmp_path / "runs").exists()
+
+
+def test_dotenv_is_loaded_without_overriding_the_environment(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("ticket_agent.cli.ROOT", tmp_path)
+    (tmp_path / ".env").write_text("GEMINI_API_KEY=from-dotenv-file\n", encoding="utf-8")
+    monkeypatch.setattr("ticket_agent.cli.RUNS_DIR", tmp_path / "runs")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    # The key from .env satisfies the check, so we get past it to the resume error.
+    with pytest.raises(SystemExit, match="No audit log"):
+        main(["run", "--resume", "nope"])
+    monkeypatch.setenv("GEMINI_API_KEY", "exported-wins")
+    load_dotenv(tmp_path / ".env", override=False)
+    assert os.environ["GEMINI_API_KEY"] == "exported-wins"
