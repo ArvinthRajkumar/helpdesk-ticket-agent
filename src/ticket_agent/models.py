@@ -7,6 +7,9 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# Project root, so prompts and config resolve the same from any working directory.
+ROOT = Path(__file__).resolve().parents[2]
+
 
 class Category(StrEnum):
     BUG = "bug"
