@@ -1,0 +1,37 @@
+ticket_id,category,priority,priority_reason,confidence,route,queue,rule,human_reason,draft
+TCK-1001,bug,urgent,Many users are blocked from accessing the system due to an outage error.,high,human_review,,model_requested_human,The report indicates a team-wide outage that requires immediate attention.,
+TCK-1002,billing,high,The customer is reporting a wrong charge and requesting a refund.,high,route_to_team,billing,confident_team_ticket,,
+TCK-1003,question,medium,A how-to question regarding account access that needs an answer.,high,auto_reply_draft,,grounded_draft,,"DRAFT (needs human approval before sending)
+
+Hi, to reset your password, please go to the login page and choose ""Forgot password"" located under the password field. You will need to enter your account email address. A reset link will be sent to your email within a few minutes. If you do not receive it, please check your spam folder and ensure the email address you entered matches the one associated with your account. Best regards."
+TCK-1004,question,medium,The customer is asking a how-to question regarding account access.,high,human_review,,non_english,Ticket language is nl.,
+TCK-1005,feature_request,medium,This is a feature request tied to a concrete pain point of user eye strain.,high,route_to_team,product,confident_team_ticket,,
+TCK-1006,bug,urgent,The loss of a significant number of tasks from a core project qualifies as data loss.,high,human_review,,model_requested_human,"The user is reporting data loss, which requires immediate human investigation.",
+TCK-1007,billing,high,The ticket concerns an invoice correction which is treated as a high priority billing request.,high,route_to_team,billing,confident_team_ticket,,
+TCK-1008,bug,medium,A bug is reported but there is no specific information to confirm impact or blockages.,low,human_review,,model_requested_human,The ticket text is too vague to determine the nature of the issue.,
+TCK-1009,feature_request,medium,The customer is requesting a feature tied to a concrete pain point of lacking export functionality.,high,route_to_team,product,confident_team_ticket,,
+TCK-1010,billing,high,The customer reports a wrong charge which is prioritized as high according to the rubric.,high,human_review,,multi_intent,Ticket raises more than one issue and must be split.,
+TCK-1011,other,urgent,"The customer is invoking a legal right under GDPR, which falls under the urgent category.",high,human_review,,category_other,The user is requesting the deletion of their personal data in accordance with GDPR Article 17.,
+TCK-1012,billing,high,"The customer is requesting a refund, which is categorized as high priority.",high,human_review,,injection_suspected,Ticket text tries to steer the agent.,
+TCK-1013,bug,urgent,The report describes a potential security vulnerability (XSS) in the product.,high,human_review,,model_requested_human,The ticket reports a security vulnerability and requires immediate human review by the security or engineering team.,
+TCK-1014,billing,urgent,The customer is threatening legal action and a report to a consumer authority due to a recurring charge after cancellation.,high,human_review,,model_requested_human,The ticket involves a legal threat and a refund request for an unauthorized charge.,
+TCK-1015,billing,medium,The user is asking a how-to question regarding invoice access.,high,route_to_team,billing,confident_team_ticket,,
+TCK-1016,feature_request,high,This is a rollout blocker for the customer.,high,route_to_team,product,confident_team_ticket,,
+TCK-1017,other,low,The ticket is unsolicited marketing spam.,high,human_review,,category_other,The ticket is a spam email regarding search engine optimization services.,
+TCK-1018,other,low,The ticket is a job application and is categorized as other.,high,human_review,,category_other,A user is submitting a job application for the Customer Success Manager role.,
+TCK-1019,bug,medium,The issue is a bug with a workaround or a performance degradation that does not block core work.,high,route_to_team,engineering,confident_team_ticket,,
+TCK-1020,bug,high,The customer is blocked from core work due to a recurring crash on a specific view.,high,route_to_team,engineering,confident_team_ticket,,
+TCK-1021,question,medium,A how-to question regarding account access and billing structure that needs a clear answer.,high,auto_reply_draft,,grounded_draft,,"DRAFT (needs human approval before sending)
+
+Hi, guests can be invited to a single project with view-only access. Guest seats are free on the Team plan and above. Guests cannot edit tasks or see other projects. Regards,"
+TCK-1022,feature_request,medium,The customer is asking for a new feature to address a concrete manual workflow pain.,high,route_to_team,product,confident_team_ticket,,
+TCK-1023,billing,medium,The customer is asking for assistance with a payment method update to prevent potential account access issues.,high,route_to_team,billing,confident_team_ticket,,
+TCK-1024,other,low,This is a misdirected mail regarding a purchase order for a different company.,high,human_review,,category_other,The customer is attempting to send a purchase order to a different company.,
+TCK-1025,other,low,The ticket is empty or contains insufficient information to categorize as a specific issue.,low,human_review,,category_other,The customer sent an empty response to a previous ticket.,
+TCK-1026,other,low,The ticket is a message of thanks and does not require support intervention.,high,human_review,,category_other,The customer is expressing gratitude for the support team resolving a previous issue.,
+TCK-1027,question,medium,The customer is asking a how-to question regarding API rate limits that needs an answer.,high,auto_reply_draft,,grounded_draft,,"DRAFT (needs human approval before sending)
+
+Hi, The REST API allows 60 requests per minute per API key. If you exceed this limit, you will receive an HTTP 429 error. To avoid this, please spread bulk syncs over time. You may also contact support regarding a higher limit for your plan. Best regards,"
+TCK-1028,feature_request,medium,The user is requesting a new feature tied to a concrete pain of manually recreating tasks.,high,route_to_team,product,confident_team_ticket,,
+TCK-1029,billing,high,The customer is reporting a wrong charge and is a repeat contact with no answer from the support team.,high,human_review,,model_requested_human,"The ticket is a follow-up on a previous complaint that has not been resolved, requiring escalation.",
+TCK-1030,bug,medium,The issue is a bug with a workaround or minor impact that is not blocking core work.,high,route_to_team,engineering,confident_team_ticket,,
