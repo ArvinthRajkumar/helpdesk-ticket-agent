@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -111,7 +112,14 @@ def run_pipeline(
     return write_views(run_dir, read_log(run_dir))
 
 
+def require_credentials() -> None:
+    """Fail before creating a run directory. Only checks presence, never reads the value."""
+    if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+        sys.exit("ANTHROPIC_API_KEY is not set. Export it and retry. See .env.example.")
+
+
 def cmd_run(args: argparse.Namespace) -> None:
+    require_credentials()
     cfg = load_config()
     tickets = load_tickets(Path(args.tickets))[: args.limit]
     run_id = args.resume or datetime.now(UTC).strftime("%Y%m%d-%H%M%S")

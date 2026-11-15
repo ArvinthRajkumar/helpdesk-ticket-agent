@@ -15,7 +15,7 @@ import yaml
 from pydantic import BaseModel
 
 from ticket_agent.audit import RUNS_DIR, read_log
-from ticket_agent.cli import run_pipeline
+from ticket_agent.cli import require_credentials, run_pipeline
 from ticket_agent.llm import AnthropicClient
 from ticket_agent.models import ROOT, Category, Priority, Route, load_tickets
 from ticket_agent.policy import load_config
@@ -98,6 +98,7 @@ def score(decisions: dict[str, dict], labels: dict[str, Label]) -> dict:
 
 
 def cmd_eval(args: argparse.Namespace) -> None:
+    require_credentials()
     cfg = load_config()
     if args.model:
         cfg.models.triage = cfg.models.draft = args.model
