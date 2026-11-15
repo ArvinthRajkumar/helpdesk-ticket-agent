@@ -1,0 +1,26 @@
+# Routing thresholds and model settings. Code in src/ticket_agent/policy.py reads this.
+# Env vars TICKET_AGENT_TRIAGE_MODEL and TICKET_AGENT_DRAFT_MODEL override the models.
+
+models:
+  triage: claude-haiku-5-5
+  draft: claude-haiku-5-5
+
+# Thinking is adaptive and always on for these models. Effort is the cost lever.
+# low is the cheapest level and enough for single-ticket classification.
+effort: low
+
+# Thinking counts toward max_tokens on these models, so leave room above the JSON itself.
+max_tokens:
+  triage: 2048
+  draft: 2048
+
+routing:
+  # Drafts and queue routing only for languages the team can review quickly.
+  allowed_languages: [en]
+  # Medium confidence is fine for a medium or low priority ticket. On these it is not.
+  escalate_priorities_on_medium_confidence: [urgent, high]
+  # Where a confident ticket goes. No queue for question (draft) or other (human).
+  queues:
+    bug: engineering
+    billing: billing
+    feature_request: product
