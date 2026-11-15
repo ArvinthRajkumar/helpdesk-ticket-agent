@@ -83,27 +83,51 @@ anything. Every decision is logged with the rule that made it.
 
 ## Results
 
-PENDING. No live run has happened yet. Every number below will be copied from files under
-`runs/` and `evals/` once the commands in "How to run" have been executed. Nothing here is
-estimated.
+All numbers come from `evals/report.md`, `evals/results/*.json` and `runs/sample/summary.md`.
+Run date 2026-11-15. No prompt, rubric or policy tuning was done, so these are first-run numbers.
 
-| metric | gemini-3.1-flash-lite | gemini-3.8-flash | source |
+| metric (eval set, n=10) | flash-lite run 1 | flash-lite run 2 | gemini-3.8-flash |
 |---|---|---|---|
-| category accuracy (n=10) | pending | pending | evals/report.md |
-| priority exact / within one | pending | pending | evals/report.md |
-| escalation precision / recall | pending | pending | evals/report.md |
-| false-auto count (headline safety number) | pending | pending | evals/report.md |
-| automation rate over 30 tickets | pending | not run | runs/<run_id>/summary.md |
-| mean cost per ticket | pending | pending | runs/<run_id>/summary.md |
-| cost per 100 tickets | pending | pending | derived from the line above |
-| cost per week at 200 tickets | pending | pending | derived from the line above |
+| category accuracy | 90% | 90% | 90% |
+| priority exact / within one | 80% / 100% | 80% / 100% | 70% / 100% |
+| route match | 90% | 80% | 90% |
+| escalation precision / recall | 83% / 100% | 71% / 100% | 83% / 100% |
+| false-auto count (headline safety number) | 0 | 0 | 0 |
+| mean cost per ticket, eval mix | $0.00044 | $0.00043 | $0.00118 |
+| mean latency per ticket | 1627 ms | 1487 ms | 2856 ms |
 
-n is 10. One ticket moves every rate by 10 points. These numbers tell me whether the pipeline is
-sane, not how accurate it is. A real estimate needs a few hundred labelled tickets and confidence
+Main run over all 30 tickets (flash-lite): 15 human_review, 12 route_to_team, 3 auto_reply_draft,
+no errors. Automation rate 50%, of which 10% are auto drafts. Total cost $0.0128, mean $0.00043
+per ticket. That is about $0.043 per 100 tickets and about $0.086 per week at 200 tickets.
+Thinking tokens were 0 at the minimal level, so thinking added nothing to the bill.
+gemini-3.8-flash costs about 2.7 times more per ticket on the eval mix: roughly $0.118 per 100
+tickets at the introductory price through 2026-12-31, and about $0.236 after the price doubles
+on 2027-01-01 (cost.py applies the change by date). I did not record whether the key was on the
+free or paid tier; all costs are paid list prices.
+
+**Did results move between runs? Yes.** Two identical eval runs on flash-lite gave the same
+category and priority accuracy, but route match fell from 90% to 80% and escalation precision
+from 83% to 71%. TCK-1001, a clear outage, went to engineering in run 1 and to a human in run 2,
+because the model's `needs_human` flag flipped. No temperature is sent, so runs are not
+deterministic. The safety number held: false-auto stayed 0 in all three runs.
+
+**Model pick: gemini-3.1-flash-lite.** It matched gemini-3.8-flash on category and escalation,
+scored higher on exact priority (80% vs 70%), and costs about 2.7 times less. With n=10 the
+priority gap is one ticket, so the honest reading is "not worse, and cheaper".
+
+**Real misses, all in `evals/diagnoses.yaml`.** The model over-escalates: it sets `needs_human`
+on a clear data loss bug (TCK-1006) and a plain double charge (TCK-1002 on 3.8 Flash). That is
+safe but lowers automation. TCK-1005 and TCK-1012 are partly my label problems: the rubric says
+a refund is high and a pain-driven feature request is medium, and the labels disagree. I left the
+reviewed labels as they are rather than tune to the model. For TCK-1008 ("it doesnt work") the
+model said bug instead of other, but still asked for a human.
+
+n is 10. One ticket moves every rate by 10 points, and the run to run movement above is exactly
+that size. These numbers tell me whether the pipeline is sane, not how accurate it is. A real estimate needs a few hundred labelled tickets and confidence
 intervals.
 
 The eval labels were drafted by Claude Code from ticket text before any agent run, and reviewed
-by me. The labeller (Claude) and the agent (Gemini) are different model families, so their
+by me with no edits. The labeller (Claude) and the agent (Gemini) are different model families, so their
 errors are less likely to correlate than when both were Claude, but the labels are still one
 person's reading of ten tickets. The eval set was also used to decide tuning changes, so after
 the first run it is no longer a clean holdout. `evals/report.md` keeps every run side by side.
@@ -200,9 +224,7 @@ Other commands: `uv run ticket-agent run --limit 1` for a cheap smoke test,
 - The source is about 900 lines of code without comments and blanks, against a target of about
   600. The eval report rendering is the largest part. I preferred a readable report to a shorter
   file, and I would cut it first if asked.
-- `.env.example` still says `ANTHROPIC_API_KEY`. The deny rule in `.claude/settings.json` that
-  protects `.env.*` also covers that tracked example file, and Claude Code would not let the
-  agent edit its own permission file, so I update both by hand: the example should read
-  `GEMINI_API_KEY=` with a note that the CLI loads `.env` itself, and the deny rule should name
-  `.env`, `.env.local` and `.env.*.local` instead of `.env.*`. The commit guard hook is also
-  attached to the Bash tool only, not PowerShell.
+- One reviewer finding in `.claude/settings.json` is still open because Claude Code would not let
+  the agent edit its own permission file: the deny rule `Read(./.env.*)` also covers the tracked
+  `.env.example`, and the commit guard hook is attached to the Bash tool only, not PowerShell.
+  Both are one-line edits I make by hand. The MCP log inspector stretch goal was not built.
