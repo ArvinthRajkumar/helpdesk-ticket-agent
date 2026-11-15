@@ -41,7 +41,8 @@ def main() -> int:
         return 0
     command = payload.get("tool_input", {}).get("command", "")
     # git, optional global options such as -C . or -c k=v, then the commit subcommand.
-    match = re.search(r"\bgit(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+commit\b(.*)", command)
+    # Group 1 stops at the end of that shell statement so flags of a later command do not count.
+    match = re.search(r"\bgit(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+commit\b([^;&|\n]*)", command)
     if not match:
         return 0
     # Flags that stage files after this check ran, so the staged diff below would be stale.
