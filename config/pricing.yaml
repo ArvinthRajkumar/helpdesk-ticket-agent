@@ -1,0 +1,23 @@
+# USD per million tokens. Fetched from https://platform.claude.com/docs/en/about-claude/pricing
+# on 2026-11-15. Cache write is the 5 minute tier, which is what the agent uses.
+# Haiku 5.5 charges more once a single request's prompt passes 100,000 tokens. Our prompts
+# are far below that, but cost.py applies the tier anyway so the math stays honest.
+# Batch API is 50 percent off both input and output. Not used here, see README.
+
+models:
+  claude-haiku-5-5:
+    input: 0.10
+    output: 0.50
+    cache_write: 0.125
+    cache_read: 0.01
+    long_context:
+      threshold_tokens: 100000
+      input: 0.50
+      output: 2.50
+      cache_write: 0.625
+      cache_read: 0.05
+  claude-sonnet-5-5:
+    input: 2.00
+    output: 10.00
+    cache_write: 2.50
+    cache_read: 0.10
