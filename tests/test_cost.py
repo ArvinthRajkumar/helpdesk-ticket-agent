@@ -25,6 +25,16 @@ def test_comparison_model_uses_its_own_rates() -> None:
     )
 
 
+def test_thinking_tokens_are_billed_as_output() -> None:
+    # Regression guard: a cost that ignores thinking_tokens equals the no-thinking cost.
+    without = cost_usd("gemini-3.1-flash-lite", Usage(1000, 100, thinking_tokens=0), PRICING)
+    with_thinking = cost_usd(
+        "gemini-3.1-flash-lite", Usage(1000, 100, thinking_tokens=400), PRICING
+    )
+    assert with_thinking == pytest.approx(without + 400 * 1.50 / 1_000_000)
+    assert with_thinking > without
+
+
 def test_unknown_model_is_none_not_zero() -> None:
     assert cost_usd("gemini-2.5-flash", Usage(10, 10), PRICING) is None
 

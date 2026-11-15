@@ -22,5 +22,8 @@ def cost_usd(model: str, usage: Usage, pricing: dict) -> float | None:
         return None
     # Cached tokens are already inside input_tokens and are priced as plain input here, which
     # is the conservative choice. The count is logged so a cheaper price could be applied later.
+    # Thinking tokens are billed at the output rate. Dropping them under-reports cost by the
+    # whole thinking budget, which on a classification call can exceed the visible answer.
+    billed_output = usage.output_tokens + usage.thinking_tokens
     per_token = 1 / 1_000_000
-    return per_token * (usage.input_tokens * rates["input"] + usage.output_tokens * rates["output"])
+    return per_token * (usage.input_tokens * rates["input"] + billed_output * rates["output"])
