@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 
 from ticket_agent.cost import cost_usd, load_pricing
@@ -39,6 +41,9 @@ def test_unknown_model_is_none_not_zero() -> None:
     assert cost_usd("gemini-2.5-flash", Usage(10, 10), PRICING) is None
 
 
-def test_price_change_is_recorded_for_the_comparison_model() -> None:
-    change = PRICING["gemini-3.8-flash"]["price_change"]
-    assert str(change["effective"]) == "2027-01-01" and change["output"] > 3.75
+def test_price_change_applies_from_its_effective_date() -> None:
+    usage = Usage(1_000_000, 1_000_000)
+    before = cost_usd("gemini-3.8-flash", usage, PRICING, today=date(2026, 12, 31))
+    after = cost_usd("gemini-3.8-flash", usage, PRICING, today=date(2027, 1, 1))
+    assert before == pytest.approx(0.75 + 3.75)
+    assert after == pytest.approx(1.50 + 7.50)

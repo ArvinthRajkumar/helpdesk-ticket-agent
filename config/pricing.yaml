@@ -14,9 +14,8 @@ models:
     output: 1.50
     cached_input: 0.025
   gemini-3.8-flash:
-    # Introductory prices through 2026-12-31. From 2027-01-01 the list prices double to
-    # input 1.50, output 7.50, cached_input 0.15. Cost numbers in the README use the rates
-    # in force on the day of the run and say so.
+    # Introductory prices through 2026-12-31. cost.py switches to the price_change block on
+    # its effective date, so a run after that date is priced at the doubled rates.
     input: 0.75
     output: 3.75
     cached_input: 0.075
