@@ -1,5 +1,6 @@
 """Triage step: one model call per ticket, returning a validated TriageResult or an error."""
 
+import re
 from pathlib import Path
 
 from ticket_agent.llm import Client, Outcome, load_prompt, structured_call
@@ -12,7 +13,7 @@ PROMPT_PATH = ROOT / "prompts" / "triage.md"
 def wrap_ticket(ticket: Ticket) -> str:
     """Delimit untrusted text. A closing tag inside the ticket is defused so the sender
     cannot end the data block early and write 'instructions' after it."""
-    safe = ticket.text.replace("</ticket", "<\\/ticket")
+    safe = re.sub(r"</ticket", r"<\\/ticket", ticket.text, flags=re.IGNORECASE)
     return f'<ticket id="{ticket.id}">\n{safe}\n</ticket>'
 
 

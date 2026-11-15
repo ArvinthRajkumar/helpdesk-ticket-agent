@@ -71,3 +71,17 @@ def test_triage_result_rejects_unknown_category_and_extra_field() -> None:
         TriageResult.model_validate({**VALID, "category": "complaint"})
     with pytest.raises(ValidationError):
         TriageResult.model_validate({**VALID, "route": "auto_reply_draft"})
+
+
+def test_ticket_id_with_tag_characters_is_rejected(tmp_path: Path) -> None:
+    csv_path = tmp_path / "t.csv"
+    csv_path.write_text('id,subject,body\n"x"">",a,b\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="characters we do not allow"):
+        load_tickets(csv_path)
+
+
+def test_scrub_replaces_email_addresses() -> None:
+    from ticket_agent.models import scrub
+
+    assert scrub("Mail from anna.devries@example.com about x") == "Mail from [email] about x"
+    assert scrub("no address here") == "no address here"

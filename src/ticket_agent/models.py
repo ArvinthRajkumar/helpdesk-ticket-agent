@@ -2,6 +2,7 @@
 
 import csv
 import hashlib
+import re
 from enum import StrEnum
 from pathlib import Path
 
@@ -85,6 +86,16 @@ class Decision(BaseModel):
     queue: str | None = None
 
 
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+# Ids end up inside a tag attribute in the prompt and in file names, so keep them boring.
+ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+
+
+def scrub(text: str) -> str:
+    """Drop email addresses from model text before it reaches the log or results."""
+    return EMAIL.sub("[email]", text)
+
+
 # Column names we accept, in order of preference. Lets a real export drop in unchanged.
 ID_COLUMNS = ("ticket_id", "id", "ticket", "number")
 SUBJECT_COLUMNS = ("subject", "title", "summary")
@@ -109,6 +120,8 @@ def load_tickets(path: Path) -> list[Ticket]:
         tickets = []
         for n, row in enumerate(reader, start=2):
             ticket_id = (row.get(id_col) or "").strip() or f"ROW-{n}"
+            if not ID_PATTERN.match(ticket_id):
+                raise ValueError(f"Row {n}: ticket id {ticket_id!r} has characters we do not allow")
             tickets.append(
                 Ticket(
                     id=ticket_id,

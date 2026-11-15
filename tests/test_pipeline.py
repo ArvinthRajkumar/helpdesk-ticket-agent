@@ -104,3 +104,16 @@ def test_explain_prints_trace(tmp_path: Path, capsys, monkeypatch) -> None:
     out = capsys.readouterr().out
     assert "step: triage" in out and "step: draft" in out and "step: decision" in out
     assert "rule: grounded_draft" in out
+
+
+def test_model_free_text_is_scrubbed_before_logging(tmp_path: Path) -> None:
+    leaky = triage_json(
+        category="bug",
+        summary="anna.devries@example.com cannot log in.",
+        priority_reason="Reported by anna.devries@example.com.",
+    )
+    run_pipeline(TICKETS[:1], FakeClient([leaky]), CFG, tmp_path / "r4", resume=False)
+    log_text = (tmp_path / "r4" / "audit.jsonl").read_text(encoding="utf-8")
+    csv_text = (tmp_path / "r4" / "results.csv").read_text(encoding="utf-8")
+    assert "anna.devries@example.com" not in log_text + csv_text
+    assert "[email] cannot log in." in log_text

@@ -8,7 +8,7 @@ from ticket_agent.audit import AuditLog, completed_ids, read_log, write_views
 from ticket_agent.cost import cost_usd, load_pricing
 from ticket_agent.draft import present, run_draft
 from ticket_agent.llm import Call, Client
-from ticket_agent.models import Route, Ticket
+from ticket_agent.models import Route, Ticket, TriageResult, scrub
 from ticket_agent.policy import Config, decide, decide_with_draft
 from ticket_agent.triage import run_triage
 
@@ -36,13 +36,26 @@ def _usage(calls: list[Call], pricing: dict) -> dict:
     return {**totals, "cost_usd": cost, "latency_ms": latency, "attempts": len(calls)}
 
 
+def _scrubbed(triage: TriageResult | None) -> TriageResult | None:
+    """The prompt asks for no names or addresses in free text. Code enforces the address part."""
+    if triage is None:
+        return None
+    return triage.model_copy(
+        update={
+            "summary": scrub(triage.summary),
+            "priority_reason": scrub(triage.priority_reason),
+            "human_reason": scrub(triage.human_reason),
+        }
+    )
+
+
 def process_ticket(
     ticket: Ticket, client: Client, cfg: Config, pricing: dict, log: AuditLog, run_id: str
 ):
     """Triage, decide, maybe draft, decide again, log every step. Never raises on model trouble."""
     base = {"run_id": run_id, "ticket_id": ticket.id, "input_hash": ticket.text_hash}
     outcome, version = run_triage(client, ticket, cfg)
-    triage = outcome.parsed
+    triage = _scrubbed(outcome.parsed)
     log.write(
         {
             **base,
