@@ -1,5 +1,5 @@
 # Hand labels for the eval set. Written from ticket text only, BEFORE any agent run.
-# Drafted by Claude Code, status proposed until the author reviews and edits them.
+# Drafted by Claude Code, status reviewed by the author, no edits.
 # Labeller and agent share a model family, so labelling errors may correlate with agent errors.
 #
 # Selection logic (deterministic, re-runnable on a new CSV with new labels):
@@ -15,9 +15,9 @@
 # human_review), note.
 # Priority follows the rubric in prompts/triage.md, which is my rubric, not the client's.
 
-status: proposed
+status: reviewed
 labelled_by: Claude Code, before first agent run
-reviewed_by: null
+reviewed_by: the author (confirmed unchanged after review)
 
 tickets:
   TCK-1001:
