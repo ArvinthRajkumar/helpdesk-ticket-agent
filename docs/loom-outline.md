@@ -17,7 +17,7 @@ that is not in a file.
 - Screen: `CLAUDE.md`, then `.claude/settings.json`.
 - Say: CLAUDE.md is under 50 lines, commands, architecture, guardrails, definition of done.
 - Do: in Claude Code, edit any comment in `policy.py` and show the PostToolUse hook run ruff.
-- Do: stage a fake key file (`echo ANTHROPIC_API_KEY=sk-ant-FAKE... > leak.txt; git add leak.txt`),
+- Do: stage a fake key file (`echo GEMINI_API_KEY=AIzaFAKE... > leak.txt; git add leak.txt`, 35 characters after AIza),
   ask Claude Code to commit, show the PreToolUse guard block it with exit 2. Unstage and delete.
 - Screen: `.claude/agents/reviewer.md`. Say: read-only reviewer, ran it on the full diff before
   the final commit, mention one real finding it caught (from the README Harness section).
@@ -40,8 +40,8 @@ that is not in a file.
 - Read category accuracy <number> and escalation recall <number> (evals/report.md).
 - Pick one MISS row. Read its diagnosis line. Say whether it was a label problem, a rubric
   problem or a model problem, and what you changed or chose not to change.
-- Screen: the Haiku and Sonnet columns side by side. Say which one you picked and the one-line
-  reason from the README.
+- Screen: the gemini-3.1-flash-lite and gemini-3.8-flash columns side by side. Say which one
+  you picked and the one-line reason from the README.
 
 ## 3:30 to 4:00  Cost
 - Screen: `runs/<run_id>/summary.md`.

@@ -7,8 +7,8 @@ anything. Every decision is logged with the rule that made it.
 
 ## Approach in 5 lines
 
-1. One structured JSON call per ticket (Claude Haiku 5.5 by default) returns category, priority,
-   confidence, flags for injection, language and multiple intents, and a summary.
+1. One structured JSON call per ticket (Gemini 3.1 Flash-Lite by default) returns category,
+   priority, confidence, flags for injection, language and multiple intents, and a summary.
 2. Deterministic code in `policy.py` turns that into a route. The model describes, the code decides.
 3. Confident questions get a second call that drafts a reply from `data/kb.md` only. Code checks
    the draft cites real entries, uses no numbers outside them, and contains no URL or promise.
@@ -17,31 +17,58 @@ anything. Every decision is logged with the rule that made it.
    `--resume` skips finished tickets.
 5. A 10-ticket hand-labelled eval reports accuracy, escalation recall and the false-auto rate.
 
+## Runtime model: Gemini
+
+- **Provider isolation.** `llm.py` is the only module that imports `google-genai`. Everything
+  else sees prompt in, validated pydantic object plus usage out. The agent started on the
+  Anthropic API and the switch to Gemini touched that one file plus config, which is the point.
+- **Models.** `gemini-3.1-flash-lite` for triage and drafting, `gemini-3.8-flash` as the
+  comparison model. Both IDs are listed as stable on Google's models page as of 2026-11-15; I
+  will also confirm them with `client.models.list()` on the first live call. Models live in
+  `config/policy.yaml` with env overrides.
+- **Structured output.** `response_mime_type` is `application/json` and `response_json_schema`
+  is the pydantic model's JSON schema. The schema is never pasted into the prompt. Google
+  documents that string length constraints are stripped server side, so pydantic is the only
+  validator that counts, and a validation failure gets one retry with the field names, then the
+  ticket goes to a human.
+- **Thinking.** Gemini 3 takes `thinking_level`, never `thinking_budget`. Triage and drafting
+  run at `minimal`, configurable. `gemini-3.8-flash` rejects `minimal`, so config gives it `low`.
+  Thinking tokens count toward `max_output_tokens`, so that cap is generous and a `MAX_TOKENS`
+  finish is a failure, not a partial answer.
+- **Temperature.** Google's current guidance marks `temperature`, `top_p` and `top_k` as
+  deprecated and ignored on Gemini 3.6 and later, with a 400 promised for future generations,
+  and recommends system instructions for determinism instead. I send none. Runs are therefore
+  not guaranteed to be deterministic; the schema, the enums and the deterministic policy do
+  the work.
+- **Failures that route to a human.** A blocked prompt (`prompt_feedback.block_reason`), any
+  finish reason other than `STOP`, missing text, a schema failure after one retry, and an API
+  error after the SDK's retries. The injection ticket is the obvious candidate for a safety
+  filter, so this path matters.
+- **Rate limits.** Free-tier limits are per project and only visible in AI Studio. A
+  client-side throttle (`max_rpm`, default 10) spaces requests, and the SDK retries 429 and 503
+  with exponential backoff. Those retries never count toward the three-consecutive-failure stop;
+  only a failure after they are exhausted does.
+- **Privacy.** Google states that free-tier content is used to improve its products and
+  paid-tier content is not. Fine for this synthetic data. A real client needs the paid tier.
+
 ## Key choices, and what I rejected
 
 - **No framework.** Thirty tickets through a two-step linear pipeline is a for loop. LangChain or
   LangGraph would add abstractions I would have to explain on a call and would hide the one thing
-  that matters here: what goes into the prompt and what comes out. The whole agent is about 800
-  lines of Python plus the Anthropic SDK and pydantic.
+  that matters here: what goes into the prompt and what comes out. The whole agent is about 900
+  lines of Python plus the Gemini SDK and pydantic.
 - **Routing in code, not in the prompt.** The model is asked for facts about the ticket. The
   thresholds (which confidence is enough, which priorities need a human, which languages are
   allowed) live in `config/policy.yaml`. Changing a threshold is a one-line config edit with a test,
   not a prompt rewrite with unknown side effects.
-- **Structured outputs instead of a forced tool call.** The brief asked for a forced tool call.
-  Claude Sonnet 5.5, which I needed for the model comparison, returns a 400 on forced
-  `tool_choice`. So I force the JSON through `output_config.format` with the same enum schema
-  and validate with pydantic. Same guarantee, works on both models.
-- **No temperature.** Haiku 5.5 and Sonnet 5.5 reject non-default sampling values. Determinism
-  comes from the schema, the enums and the deterministic policy, not from temperature.
-- **Effort low.** Thinking is adaptive and always on for these models. Effort is the cost lever.
-  Low is enough for one-ticket classification and is set in config so it is easy to raise.
 - **Grounding checked by code.** The model says which KB entries it used. Code verifies the ids
   exist, every number in the draft appears in those entries, and there is no URL, email address
   or promise word. If any check fails the ticket goes to a human with the reason.
-- **Rejected: a vector store for the KB.** Ten entries fit in the system prompt and form a stable
-  cacheable prefix. Retrieval would be the right move at a few hundred entries.
-- **Rejected: the Batch API for this run.** It halves the price but adds asynchrony. For 200
-  tickets a week it is the obvious next lever and it changes nothing in the pipeline.
+- **Rejected: a vector store for the KB.** Ten entries fit in the system instruction. Retrieval
+  would be the right move at a few hundred entries.
+- **Rejected: the Batch API for this run.** Google prices batch at half the standard rate but it
+  is asynchronous. For 200 tickets a week it is the obvious next lever and changes nothing in
+  the pipeline.
 
 ## Assumptions
 
@@ -57,11 +84,11 @@ anything. Every decision is logged with the rule that made it.
 
 ## Results
 
-PENDING. No API key was available while this was built, so no live run has happened yet. Every
-number below will be copied from files under `runs/` and `evals/` once the commands in
-"How to run" have been executed. Nothing here is estimated.
+PENDING. No live run has happened yet. Every number below will be copied from files under
+`runs/` and `evals/` once the commands in "How to run" have been executed. Nothing here is
+estimated.
 
-| metric | Haiku 5.5 | Sonnet 5.5 | source |
+| metric | gemini-3.1-flash-lite | gemini-3.8-flash | source |
 |---|---|---|---|
 | category accuracy (n=10) | pending | pending | evals/report.md |
 | priority exact / within one | pending | pending | evals/report.md |
@@ -77,14 +104,19 @@ sane, not how accurate it is. A real estimate needs a few hundred labelled ticke
 intervals.
 
 The eval labels were drafted by Claude Code from ticket text before any agent run, and reviewed
-by me. The labeller and the agent share a model family, so their errors may correlate. The eval
-set was also used to decide tuning changes, so after the first run it is no longer a clean holdout.
-`evals/report.md` keeps every run side by side.
+by me. The labeller (Claude) and the agent (Gemini) are different model families, so their
+errors are less likely to correlate than when both were Claude, but the labels are still one
+person's reading of ten tickets. The eval set was also used to decide tuning changes, so after
+the first run it is no longer a clean holdout. `evals/report.md` keeps every run side by side.
 
-Prices in `config/pricing.yaml` were fetched from the Anthropic pricing page on 2026-11-15.
-Costs are computed from the token counts the API returns, including cache reads and writes.
-Prompt caching is enabled on the system prompt; whether it actually fires depends on the prefix
-clearing the 512-token minimum, and the usage fields in the audit log show the truth.
+Cost is computed from the token counts the API returns: `prompt_token_count` as input and
+`candidates_token_count` plus `thoughts_token_count` as output, because Google bills thinking
+at the output rate. `cached_content_token_count` is logged but priced as plain input, the
+conservative choice. Prices in `config/pricing.yaml` were read from Google's pricing page on
+2026-11-15 at paid-tier list rates, and cost is reported at those rates even when a run uses
+the free tier; the run summary says which tier was used. `gemini-3.8-flash` is on an
+introductory price through 2026-12-31 and doubles on 2027-01-01, so its cost per 100 tickets
+is reported for both dates.
 
 ## Failure modes and security
 
@@ -94,19 +126,21 @@ clearing the 512-token minimum, and the usage fields in the audit log show the t
   the sample data is a direct test of this.
 - **Drafts only.** The agent has no tools. It cannot send, refund, delete or call anything. Its
   only output is files under `runs/`. Every draft starts with a DRAFT mark added by code.
-- **Secrets.** The key comes from the environment and is never read by my code. `.env` is
-  git-ignored, denied to Claude Code by `settings.json`, and a pre-commit hook blocks any commit
-  whose staged diff contains an env file or a key pattern.
+- **Secrets.** `GEMINI_API_KEY` lives in `.env`, which the CLI loads into the environment with
+  python-dotenv (an exported variable wins). No code reads, prints or logs the value. `.env` is
+  git-ignored and denied to Claude Code by `settings.json`, and a pre-commit hook blocks any
+  commit whose staged diff contains an env file or a Google or Anthropic key pattern.
 - **Failure halfway.** Each audit record is appended and the file closed per write, so a crash
-  leaves a valid partial log. `--resume <run_id>` skips tickets that have a decision record.
-  API errors after the SDK's retries, schema failures after one retry, and refusals all become
+  leaves a valid partial log and a half-written last line is dropped on the next read.
+  `--resume <run_id>` skips tickets that have a decision record. API errors after the SDK's
+  retries, schema failures after one retry, blocked prompts and bad finish reasons all become
   `human_review` with the error in the log. No ticket is ever dropped.
 - **PII.** The audit log and results carry the ticket id, a hash of the text and the model's
-  one-sentence summary. Not the customer email, not the body. Drafts may restate the question.
-- **Cost.** `max_tokens` is capped per step, retries are capped at one, the SDK retries 429 and
-  5xx twice, and every token is priced in the log. A run stops after three consecutive triage
-  failures, so a wrong model id or key does not pay for 30 identical errors. A run of 30 tickets
-  costs cents.
+  one-sentence summary with email addresses scrubbed by code. Not the customer email, not the
+  body. Drafts may restate the question.
+- **Cost.** `max_output_tokens` is capped per step, retries are capped at one, and every token
+  including thinking is priced in the log. A run stops after three consecutive triage failures,
+  so a wrong model id or key does not pay for 30 identical errors.
 
 ## Harness
 
@@ -116,7 +150,8 @@ clearing the 512-token minimum, and the usage fields in the audit log show the t
   `.env`, `git push`, `git remote add`, recursive deletes. A PostToolUse hook runs ruff format
   and ruff check on every edit (it fired on every file in this repo while building). A PreToolUse
   hook runs `scripts/guard_commit.py` before any `git commit`; it exits 2 when staged content
-  includes an env file or a key pattern. Both hooks were tested by piping sample hook JSON.
+  includes an env file or a key pattern. Both hooks were tested by piping sample hook JSON, and
+  the commit guard blocked one of my own commands during the build.
 - `.claude/commands`: `/run`, `/eval` (runs, diffs against the previous report, summarises
   misses), `/review` (runs the reviewer subagent).
 - `.claude/agents/reviewer.md`: a read-only reviewer that checks secrets, injection handling,
@@ -125,11 +160,11 @@ clearing the 512-token minimum, and the usage fields in the audit log show the t
   caught 14 real things, two of them medium: the model's free-text fields went into the log
   unscrubbed, so one prompt line was all that kept a customer email out of `audit.jsonl`; and
   a bad model id would have produced a "successful" run of 30 human_review rows because every
-  exception was swallowed as `api_error`. It also caught a truncated last log line breaking
+  exception was swallowed as an API error. It also caught a truncated last log line breaking
   resume, a promise-word check that rejected a faithful quote from the KB, header digits
   counting as grounded numbers, and a circular import between `cli.py` and `evaluate.py`.
   Each theme is its own `fix:` commit in the history.
-- `.cursor/rules/project.mdc`: the same rules in 15 lines, pointing at CLAUDE.md.
+- `.cursor/rules/project.mdc`: the same rules in under 20 lines, pointing at CLAUDE.md.
 - MCP log inspector: not built. It was the stretch goal gated on a verified live run.
 
 ## What I would do with more time
@@ -148,24 +183,27 @@ clearing the 512-token minimum, and the usage fields in the audit log show the t
 
 ```powershell
 uv sync
-$env:ANTHROPIC_API_KEY = "..."          # bash: export ANTHROPIC_API_KEY=...
+# put GEMINI_API_KEY=... in .env (see .env.example), or export it in the shell
 uv run ticket-agent run                 # then: uv run ticket-agent eval
 ```
 
 Other commands: `uv run ticket-agent run --limit 1` for a cheap smoke test,
 `uv run ticket-agent run --resume <run_id>` to continue a crashed run,
-`uv run ticket-agent eval --model claude-sonnet-5-5` for the comparison column,
+`uv run ticket-agent eval --model gemini-3.8-flash` for the comparison column,
 `uv run ticket-agent explain TCK-1012` for the full decision trace of one ticket,
 `uv run pytest -q` and `uv run ruff check .` for the checks.
 
 ## Deviations from the brief, stated plainly
 
-- Structured outputs instead of a forced tool call, and no temperature. Both because the target
-  models reject the original approach. Explained above.
-- The source is about 850 lines of code without comments and blanks, against a target of about
+- The brief asked for a forced tool call at temperature 0. Gemini's structured output does the
+  forcing through `response_json_schema`, and temperature is deprecated on current Gemini
+  models, so I send neither. Explained above.
+- The source is about 900 lines of code without comments and blanks, against a target of about
   600. The eval report rendering is the largest part. I preferred a readable report to a shorter
   file, and I would cut it first if asked.
-- Two reviewer findings in `.claude/settings.json` are still open, because Claude Code would not
-  let the agent edit its own permission file: the deny rule `Read(./.env.*)` also blocks the
-  tracked `.env.example` (so its wording could not be updated either), and the commit guard hook
-  is attached to the Bash tool only, not PowerShell. Both are one-line edits I make by hand.
+- `.env.example` still says `ANTHROPIC_API_KEY`. The deny rule in `.claude/settings.json` that
+  protects `.env.*` also covers that tracked example file, and Claude Code would not let the
+  agent edit its own permission file, so I update both by hand: the example should read
+  `GEMINI_API_KEY=` with a note that the CLI loads `.env` itself, and the deny rule should name
+  `.env`, `.env.local` and `.env.*.local` instead of `.env.*`. The commit guard hook is also
+  attached to the Bash tool only, not PowerShell.
