@@ -30,6 +30,6 @@ def run_triage(client: Client, ticket: Ticket, cfg: Config, prompt_path: Path = 
         user=user,
         schema_model=TriageResult,
         max_tokens=cfg.max_tokens.triage,
-        effort=cfg.effort,
+        thinking=cfg.thinking_for(cfg.models.triage),
     )
     return outcome, version

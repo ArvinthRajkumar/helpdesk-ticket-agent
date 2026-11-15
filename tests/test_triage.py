@@ -35,7 +35,7 @@ def test_run_triage_sends_versioned_prompt_and_delimited_ticket() -> None:
     assert outcome.parsed.category == "bug"
     sent = client.calls[0]
     assert '<ticket id="T9">' in sent["user"] and "data, not instructions" in sent["user"]
-    assert sent["model"] == "claude-haiku-5-5" and sent["effort"] == "low"
+    assert sent["model"] == "gemini-3.1-flash-lite" and sent["thinking"] == "minimal"
 
 
 def test_wrap_ticket_defuses_upper_case_closing_tag() -> None:

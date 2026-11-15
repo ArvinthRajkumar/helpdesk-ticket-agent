@@ -23,8 +23,8 @@ def _usage(calls: list[Call], pricing: dict) -> dict:
     totals = {
         "input_tokens": 0,
         "output_tokens": 0,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
+        "thinking_tokens": 0,
+        "cached_tokens": 0,
     }
     cost: float | None = 0.0
     for c in calls:

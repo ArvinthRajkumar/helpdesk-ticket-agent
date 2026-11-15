@@ -43,9 +43,16 @@ class Routing(BaseModel):
 class Config(BaseModel):
     models: Models
     max_tokens: MaxTokens
-    effort: str
+    thinking_level: str
+    thinking_level_by_model: dict[str, str] = {}
+    max_rpm: int
+    retry_attempts: int
     max_consecutive_failures: int
     routing: Routing
+
+    def thinking_for(self, model: str) -> str:
+        """Some models reject the cheapest level (gemini-3.8-flash has no minimal)."""
+        return self.thinking_level_by_model.get(model, self.thinking_level)
 
 
 def load_config(path: Path = CONFIG_PATH) -> Config:

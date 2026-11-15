@@ -1,23 +1,27 @@
-# USD per million tokens. Fetched from https://platform.claude.com/docs/en/about-claude/pricing
-# on 2026-11-15. Cache write is the 5 minute tier, which is what the agent uses.
-# Haiku 5.5 charges more once a single request's prompt passes 100,000 tokens. Our prompts
-# are far below that, but cost.py applies the tier anyway so the math stays honest.
-# Batch API is 50 percent off both input and output. Not used here, see README.
+# USD per million tokens, paid tier, standard (not batch) rates.
+# Source: https://ai.google.dev/gemini-api/docs/pricing (now served from
+# https://aistudio.google.com/docs/pricing), checked 2026-11-15.
+# Output price includes thinking tokens, so cost.py bills thinking as output.
+# cached_input is what Google charges for context cache hits. cost.py does not apply it: cached
+# tokens are a subset of prompt_token_count and are priced as plain input, the conservative
+# choice. Batch API is 50 percent off both input and output. Not used here, see README.
+# Free tier: both models are free of charge with lower rate limits, and free-tier content is
+# used to improve Google's products. Costs below are list prices regardless of the tier used.
 
 models:
-  claude-haiku-5-5:
-    input: 0.10
-    output: 0.50
-    cache_write: 0.125
-    cache_read: 0.01
-    long_context:
-      threshold_tokens: 100000
-      input: 0.50
-      output: 2.50
-      cache_write: 0.625
-      cache_read: 0.05
-  claude-sonnet-5-5:
-    input: 2.00
-    output: 10.00
-    cache_write: 2.50
-    cache_read: 0.10
+  gemini-3.1-flash-lite:
+    input: 0.25
+    output: 1.50
+    cached_input: 0.025
+  gemini-3.8-flash:
+    # Introductory prices through 2026-12-31. From 2027-01-01 the list prices double to
+    # input 1.50, output 7.50, cached_input 0.15. Cost numbers in the README use the rates
+    # in force on the day of the run and say so.
+    input: 0.75
+    output: 3.75
+    cached_input: 0.075
+    price_change:
+      effective: 2027-01-01
+      input: 1.50
+      output: 7.50
+      cached_input: 0.15

@@ -15,7 +15,7 @@ import yaml
 from pydantic import BaseModel
 
 from ticket_agent.audit import RUNS_DIR, read_log
-from ticket_agent.llm import AnthropicClient
+from ticket_agent.llm import GeminiClient
 from ticket_agent.models import ROOT, Category, Priority, Route, load_tickets
 from ticket_agent.pipeline import require_credentials, run_pipeline
 from ticket_agent.policy import load_config
@@ -109,7 +109,8 @@ def cmd_eval(args: argparse.Namespace) -> None:
         raise SystemExit(f"Labelled tickets missing from CSV: {sorted(missing)}")
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     run_dir = RUNS_DIR / f"eval-{cfg.models.triage}-{stamp}"
-    summary = run_pipeline(tickets, AnthropicClient(), cfg, run_dir, resume=False)
+    client = GeminiClient(cfg.max_rpm, cfg.retry_attempts)
+    summary = run_pipeline(tickets, client, cfg, run_dir, resume=False)
     records = read_log(run_dir)
     decisions = {r["ticket_id"]: r for r in records if r["step"] == "decision"}
     metrics = score(decisions, labels)
@@ -120,7 +121,7 @@ def cmd_eval(args: argparse.Namespace) -> None:
         "run_id": run_dir.name,
         "model": cfg.models.triage,
         "prompt_version": version,
-        "effort": cfg.effort,
+        "thinking_level": cfg.thinking_for(cfg.models.triage),
         **metrics,
         "triage_cost_usd": triage_cost,
         "draft_cost_usd": draft_cost,

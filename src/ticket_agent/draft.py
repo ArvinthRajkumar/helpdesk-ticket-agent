@@ -86,7 +86,7 @@ def run_draft(
         user=user,
         schema_model=Draft,
         max_tokens=cfg.max_tokens.draft,
-        effort=cfg.effort,
+        thinking=cfg.thinking_for(cfg.models.draft),
     )
     draft = outcome.parsed
     grounding = check_grounding(draft, kb) if draft else None

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ticket_agent.audit import RUNS_DIR, latest_run_dir, read_log
 from ticket_agent.evaluate import cmd_eval
-from ticket_agent.llm import AnthropicClient
+from ticket_agent.llm import GeminiClient
 from ticket_agent.models import ROOT, load_tickets
 from ticket_agent.pipeline import require_credentials, run_pipeline
 from ticket_agent.policy import load_config
@@ -24,7 +24,11 @@ def cmd_run(args: argparse.Namespace) -> None:
     if args.resume and not (RUNS_DIR / run_id / "audit.jsonl").exists():
         sys.exit(f"No audit log under runs/{run_id}. Check the run id.")
     summary = run_pipeline(
-        tickets, AnthropicClient(), cfg, RUNS_DIR / run_id, resume=bool(args.resume)
+        tickets,
+        GeminiClient(cfg.max_rpm, cfg.retry_attempts),
+        cfg,
+        RUNS_DIR / run_id,
+        resume=bool(args.resume),
     )
     print(f"\nrun_id: {run_id}")
     print(json.dumps(summary, indent=2))

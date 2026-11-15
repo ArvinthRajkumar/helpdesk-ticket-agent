@@ -20,14 +20,7 @@ def cost_usd(model: str, usage: Usage, pricing: dict) -> float | None:
     rates = pricing.get(model)
     if rates is None:
         return None
-    prompt_tokens = usage.input_tokens + usage.cache_read_tokens + usage.cache_write_tokens
-    long = rates.get("long_context")
-    if long and prompt_tokens > long["threshold_tokens"]:
-        rates = long
+    # Cached tokens are already inside input_tokens and are priced as plain input here, which
+    # is the conservative choice. The count is logged so a cheaper price could be applied later.
     per_token = 1 / 1_000_000
-    return per_token * (
-        usage.input_tokens * rates["input"]
-        + usage.output_tokens * rates["output"]
-        + usage.cache_read_tokens * rates["cache_read"]
-        + usage.cache_write_tokens * rates["cache_write"]
-    )
+    return per_token * (usage.input_tokens * rates["input"] + usage.output_tokens * rates["output"])

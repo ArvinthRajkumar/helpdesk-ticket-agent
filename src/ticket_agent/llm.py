@@ -1,7 +1,9 @@
-"""One structured JSON call to Claude, one retry on schema failure, and a fake for tests.
+"""One structured JSON call to Gemini, one retry on schema failure, and a fake for tests.
 
-The agent has no tools. The model can only return a JSON object that pydantic validates.
-Nothing here reads the API key: the SDK picks ANTHROPIC_API_KEY up from the environment.
+This is the only module that imports google-genai. Everything else sees: prompt in, validated
+pydantic object plus usage out. Swapping the provider again is a change to this file only.
+The agent has no tools. Nothing here reads the API key: the SDK picks GEMINI_API_KEY up from
+the environment.
 """
 
 import time
@@ -9,16 +11,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-import anthropic
+from google import genai
+from google.genai import errors, types
 from pydantic import BaseModel, ValidationError
+
+RETRYABLE_STATUS = [429, 503]
 
 
 @dataclass
 class Usage:
-    input_tokens: int = 0
-    output_tokens: int = 0
-    cache_read_tokens: int = 0
-    cache_write_tokens: int = 0
+    input_tokens: int = 0  # prompt_token_count
+    output_tokens: int = 0  # candidates_token_count, the visible answer
+    thinking_tokens: int = 0  # thoughts_token_count, billed as output
+    cached_tokens: int = 0  # cached_content_token_count, logged, priced as plain input
 
 
 @dataclass
@@ -26,56 +31,134 @@ class Call:
     model: str
     usage: Usage
     latency_ms: int
-    stop_reason: str | None
+    finish_reason: str | None  # STOP is the only good value
     text: str
+    block_reason: str | None = None  # set when the prompt itself was filtered
 
 
 class Client(Protocol):
     def complete(
-        self, *, model: str, system: str, user: str, schema: dict, max_tokens: int, effort: str
+        self, *, model: str, system: str, user: str, schema: dict, max_tokens: int, thinking: str
     ) -> Call: ...
 
 
-class AnthropicClient:
-    def __init__(self) -> None:
-        # Default retries (2) cover 429 and 5xx. Anything that still fails becomes an error
-        # the caller records, never an exception that stops the run.
-        self._client = anthropic.Anthropic()
+class Throttle:
+    """Client-side cap on requests per minute. Free-tier limits are per project and only
+    visible in AI Studio, so the default in config is deliberately conservative."""
+
+    def __init__(self, max_rpm: int) -> None:
+        self.interval = 60.0 / max_rpm
+        self.last = 0.0
+
+    def wait(self) -> None:
+        gap = self.last + self.interval - time.monotonic()
+        if gap > 0:
+            time.sleep(gap)
+        self.last = time.monotonic()
+
+
+def call_from_response(
+    response: types.GenerateContentResponse, model: str, latency_ms: int
+) -> Call:
+    """Shared by the real and the fake client so tests exercise the same parsing."""
+    usage = response.usage_metadata
+    candidate = response.candidates[0] if response.candidates else None
+    feedback = response.prompt_feedback
+    finish = candidate.finish_reason.name if candidate and candidate.finish_reason else None
+    text = ""
+    if candidate and candidate.content and candidate.content.parts:
+        text = "".join(p.text or "" for p in candidate.content.parts if not p.thought)
+    return Call(
+        model=model,
+        usage=Usage(
+            input_tokens=(usage.prompt_token_count or 0) if usage else 0,
+            output_tokens=(usage.candidates_token_count or 0) if usage else 0,
+            thinking_tokens=(usage.thoughts_token_count or 0) if usage else 0,
+            cached_tokens=(usage.cached_content_token_count or 0) if usage else 0,
+        ),
+        latency_ms=latency_ms,
+        finish_reason=finish,
+        text=text,
+        block_reason=feedback.block_reason.name if feedback and feedback.block_reason else None,
+    )
+
+
+class GeminiClient:
+    def __init__(self, max_rpm: int, retry_attempts: int) -> None:
+        # The SDK does the exponential backoff on 429 and 503. Only a failure after these
+        # attempts reaches the caller, so backoff never counts as a ticket failure.
+        retry = types.HttpRetryOptions(
+            attempts=retry_attempts,
+            initial_delay=2.0,
+            max_delay=30.0,
+            exp_base=2.0,
+            jitter=1.0,
+            http_status_codes=RETRYABLE_STATUS,
+        )
+        self._client = genai.Client(http_options=types.HttpOptions(retry_options=retry))
+        self._throttle = Throttle(max_rpm)
 
     def complete(
-        self, *, model: str, system: str, user: str, schema: dict, max_tokens: int, effort: str
+        self, *, model: str, system: str, user: str, schema: dict, max_tokens: int, thinking: str
     ) -> Call:
+        self._throttle.wait()
         started = time.perf_counter()
-        response = self._client.messages.create(
+        response = self._client.models.generate_content(
             model=model,
-            max_tokens=max_tokens,
-            # cache_control only pays off above the model's minimum prefix (512 tokens on
-            # Haiku 5.5 and Sonnet 5.5). Usage fields show whether it actually cached.
-            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": user}],
-            # No temperature: Haiku 5.5 and Sonnet 5.5 reject non-default sampling values.
-            # No forced tool_choice: Sonnet 5.5 rejects it. The JSON schema does the forcing.
-            output_config={"format": {"type": "json_schema", "schema": schema}, "effort": effort},
-        )
-        usage = response.usage
-        return Call(
-            model=response.model,
-            usage=Usage(
-                input_tokens=usage.input_tokens,
-                output_tokens=usage.output_tokens,
-                cache_read_tokens=usage.cache_read_input_tokens or 0,
-                cache_write_tokens=usage.cache_creation_input_tokens or 0,
+            contents=user,
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                response_mime_type="application/json",
+                response_json_schema=schema,
+                # Gemini 3 takes thinking_level, never thinking_budget. Thinking counts toward
+                # max_output_tokens, so the cap is generous and truncation is a failure.
+                thinking_config=types.ThinkingConfig(thinking_level=thinking),
+                max_output_tokens=max_tokens,
+                # No temperature: Google marks it deprecated and ignored on Gemini 3.6 and later.
             ),
-            latency_ms=int((time.perf_counter() - started) * 1000),
-            stop_reason=response.stop_reason,
-            text="".join(block.text for block in response.content if block.type == "text"),
         )
+        latency = int((time.perf_counter() - started) * 1000)
+        return call_from_response(response, model, latency)
+
+
+def fake_response(
+    text: str = "",
+    finish_reason: str | None = "STOP",
+    prompt_tokens: int = 100,
+    output_tokens: int = 20,
+    thinking_tokens: int = 0,
+    block_reason: str | None = None,
+) -> types.GenerateContentResponse:
+    """A real SDK response object, so the fake goes through call_from_response like the API."""
+    candidates = []
+    if block_reason is None:
+        candidates = [
+            types.Candidate(
+                content=types.Content(role="model", parts=[types.Part(text=text)]),
+                finish_reason=types.FinishReason(finish_reason) if finish_reason else None,
+            )
+        ]
+    feedback = (
+        types.GenerateContentResponsePromptFeedback(block_reason=types.BlockedReason(block_reason))
+        if block_reason
+        else None
+    )
+    return types.GenerateContentResponse(
+        candidates=candidates,
+        prompt_feedback=feedback,
+        usage_metadata=types.GenerateContentResponseUsageMetadata(
+            prompt_token_count=prompt_tokens,
+            candidates_token_count=output_tokens,
+            thoughts_token_count=thinking_tokens or None,
+        ),
+    )
 
 
 class FakeClient:
-    """Returns canned replies in order. An Exception in the list is raised instead."""
+    """Returns canned replies in order. A str becomes a normal STOP response, a response
+    object is passed through, an Exception is raised instead."""
 
-    def __init__(self, replies: list[str | Exception]) -> None:
+    def __init__(self, replies: list[str | types.GenerateContentResponse | Exception]) -> None:
         self.replies = list(replies)
         self.calls: list[dict[str, Any]] = []
 
@@ -86,9 +169,9 @@ class FakeClient:
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
-        return Call(
-            model=model, usage=Usage(100, 20), latency_ms=1, stop_reason="end_turn", text=reply
-        )
+        if isinstance(reply, str):
+            reply = fake_response(reply)
+        return call_from_response(reply, model, latency_ms=1)
 
 
 @dataclass
@@ -96,21 +179,6 @@ class Outcome:
     parsed: BaseModel | None
     error: str | None
     calls: list[Call] = field(default_factory=list)
-
-
-def api_schema(model: type[BaseModel]) -> dict:
-    """Pydantic schema minus string length limits, which the API rejects.
-
-    Pydantic still enforces them on our side."""
-
-    def strip(node: Any) -> Any:
-        if isinstance(node, dict):
-            return {k: strip(v) for k, v in node.items() if k not in ("minLength", "maxLength")}
-        if isinstance(node, list):
-            return [strip(v) for v in node]
-        return node
-
-    return strip(model.model_json_schema())
 
 
 def structured_call(
@@ -121,10 +189,13 @@ def structured_call(
     user: str,
     schema_model: type[BaseModel],
     max_tokens: int,
-    effort: str,
+    thinking: str,
 ) -> Outcome:
-    """Ask for JSON, validate it, retry once with the validation error, then give up."""
-    schema = api_schema(schema_model)
+    """Ask for JSON, validate it, retry once with the validation error, then give up.
+
+    The API drops schema constraints it does not support (string lengths and similar), so
+    pydantic is the only validator that counts."""
+    schema = schema_model.model_json_schema()
     calls: list[Call] = []
     prompt = user
     error = "no attempt made"
@@ -136,20 +207,21 @@ def structured_call(
                 user=prompt,
                 schema=schema,
                 max_tokens=max_tokens,
-                effort=effort,
+                thinking=thinking,
             )
-        except anthropic.APIError as exc:
-            # SDK errors become a recorded error so the ticket routes to a human. Anything
-            # else is a bug in this code and should crash loudly; resume picks up afterwards.
-            status = getattr(exc, "status_code", None)
-            detail = f" status={status}" if status else ""
-            return Outcome(None, f"api_error: {type(exc).__name__}{detail}", calls)
+        except errors.APIError as exc:
+            # After the SDK's own retries. Recorded so the ticket routes to a human; bugs in
+            # this code are not APIErrors and crash loudly, resume picks up afterwards.
+            return Outcome(None, f"api_error: {type(exc).__name__} status={exc.code}", calls)
         calls.append(call)
-        if call.stop_reason == "refusal":
-            return Outcome(None, "refusal: model declined the request", calls)
-        if call.stop_reason == "max_tokens":
-            # Retrying with the same budget would truncate again, so stop here.
+        if call.block_reason:
+            return Outcome(None, f"blocked: prompt filtered ({call.block_reason})", calls)
+        if call.finish_reason == "MAX_TOKENS":
             return Outcome(None, "max_tokens: output truncated, raise max_tokens in config", calls)
+        if call.finish_reason != "STOP":
+            return Outcome(None, f"finish_reason: {call.finish_reason or 'none'}", calls)
+        if not call.text.strip():
+            return Outcome(None, "empty_response: no text returned", calls)
         try:
             return Outcome(schema_model.model_validate_json(call.text), None, calls)
         except ValidationError as exc:

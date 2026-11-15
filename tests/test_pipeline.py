@@ -2,9 +2,8 @@ import csv
 import json
 from pathlib import Path
 
-import anthropic
-import httpx2
 import pytest
+from google.genai import errors
 
 from ticket_agent.audit import completed_ids, read_log
 from ticket_agent.cli import main
@@ -17,8 +16,7 @@ CFG = load_config()
 
 
 def api_down() -> Exception:
-    req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
-    return anthropic.APIConnectionError(request=req)
+    return errors.ServerError(503, {"error": {"message": "overloaded"}})
 
 
 def triage_json(**kw) -> str:
@@ -67,7 +65,9 @@ def test_pipeline_writes_log_views_and_never_drops_a_ticket(tmp_path: Path) -> N
     assert [r["ticket_id"] for r in rows] == ["A", "B", "C"]
     assert rows[0]["draft"].startswith("DRAFT (needs human approval")
     assert rows[1]["queue"] == "engineering"
-    assert rows[2]["rule"] == "triage_failed" and "APIConnectionError" in rows[2]["human_reason"]
+    assert (
+        rows[2]["rule"] == "triage_failed" and "ServerError status=503" in rows[2]["human_reason"]
+    )
 
     summary_md = (tmp_path / "r1" / "summary.md").read_text(encoding="utf-8")
     assert "Automation rate (not human_review): 67%" in summary_md

@@ -2,17 +2,27 @@
 # Env vars TICKET_AGENT_TRIAGE_MODEL and TICKET_AGENT_DRAFT_MODEL override the models.
 
 models:
-  triage: claude-haiku-5-5
-  draft: claude-haiku-5-5
+  triage: gemini-3.1-flash-lite
+  draft: gemini-3.1-flash-lite
 
-# Thinking is adaptive and always on for these models. Effort is the cost lever.
-# low is the cheapest level and enough for single-ticket classification.
-effort: low
+# Gemini 3 thinking is controlled by thinking_level (never thinking_budget). minimal is the
+# cheapest level and enough for single-ticket classification. Some models do not accept it:
+# gemini-3.8-flash supports low, medium and high only, so it gets an override below.
+thinking_level: minimal
+thinking_level_by_model:
+  gemini-3.8-flash: low
 
-# Thinking counts toward max_tokens on these models, so leave room above the JSON itself.
+# max_output_tokens bounds thinking plus the answer, so leave plenty of room above the JSON.
+# A MAX_TOKENS finish is treated as a failure and the ticket goes to a human.
 max_tokens:
-  triage: 2048
-  draft: 2048
+  triage: 4096
+  draft: 4096
+
+# Client-side throttle. Free-tier limits are per project and only visible in AI Studio, so
+# this stays conservative. Raise it on the paid tier.
+max_rpm: 10
+# SDK attempts for 429 and 503 with exponential backoff. These never count as a ticket failure.
+retry_attempts: 5
 
 # A run stops after this many consecutive triage failures. A wrong model id or key fails
 # every ticket the same way and there is no point paying for 30 of them.
