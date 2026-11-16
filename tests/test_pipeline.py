@@ -29,12 +29,13 @@ def runner(server: FakeServer, tmp: Path, decide=reply, run_id="r1", **kw) -> Ru
 
 def test_every_open_ticket_gets_one_post_and_one_log_line(tmp_path: Path) -> None:
     server = FakeServer(["T1", "T2", "T3"])
-    runner(server, tmp_path).run()
+    r = runner(server, tmp_path)
+    r.run()
     assert sorted(server.posts) == [("T1", "reply"), ("T2", "reply"), ("T3", "reply")]
     lines = read_log(tmp_path / "r1.jsonl")
     assert [x["ticket_id"] for x in lines] == ["T1", "T2", "T3"]
     assert all(x["api"]["status"] == "posted" for x in lines)
-    assert Journal(tmp_path / "journal.jsonl").pending() == {}
+    assert Journal(tmp_path / "journal.jsonl").pending(r.scope) == {}
 
 
 def test_rerun_after_a_clean_run_posts_nothing(tmp_path: Path) -> None:
@@ -73,8 +74,9 @@ def test_crash_before_save_reposts_the_journaled_decision_without_the_model(
 def test_503_exhausted_leaves_the_intent_pending_for_the_next_run(tmp_path: Path) -> None:
     server = FakeServer(["T1"])
     server.fault("POST", "T1", *["503"] * 5)
-    runner(server, tmp_path).run()
-    assert server.posts == [] and "T1" in Journal(tmp_path / "journal.jsonl").pending()
+    r = runner(server, tmp_path)
+    r.run()
+    assert server.posts == [] and "T1" in Journal(tmp_path / "journal.jsonl").pending(r.scope)
     runner(server, tmp_path, decide=never, run_id="r2").run()
     assert server.posts == [("T1", "reply")]
 
@@ -126,13 +128,22 @@ def test_three_hard_failures_in_a_row_stop_the_run(tmp_path: Path) -> None:
 
 def test_archive_moves_the_journal_aside(tmp_path: Path) -> None:
     j = Journal(tmp_path / "journal.jsonl")
-    j.intent("T1", "r1", "reply", BODY)
-    assert j.archive() is not None and j.pending() == {}
+    j.intent("T1", "r1", "reply", BODY, "s")
+    assert j.archive() is not None and j.pending("s") == {}
 
 
 def test_torn_last_line_is_ignored(tmp_path: Path) -> None:
     j = Journal(tmp_path / "journal.jsonl")
-    j.intent("T1", "r1", "reply", BODY)
+    j.intent("T1", "r1", "reply", BODY, "s")
     with j.path.open("a", encoding="utf-8") as fh:
         fh.write('{"event": "inte')
-    assert list(j.pending()) == ["T1"]
+    assert list(j.pending("s")) == ["T1"]
+
+
+def test_an_intent_from_another_helpdesk_mode_never_replays(tmp_path: Path) -> None:
+    j = Journal(tmp_path / "journal.jsonl")
+    j.intent("T1", "r0", "reply", {**BODY, "draft_reply": "old"}, "practice@https://other/")
+    server = FakeServer(["T1"])
+    runner(server, tmp_path).run()
+    # T1 was decided fresh in this scope, not replayed from the other one.
+    assert server.tickets["T1"]["handled"]["draft_reply"] == "Hallo"

@@ -63,17 +63,18 @@ class Runner:
         self.statuses: Counter = Counter()
         self.actions: Counter = Counter()
         self.cost = 0.0
+        self.scope = ""  # set from GET /status at the start of run()
 
     def post(self, ticket_id: str, action: str, body: dict) -> tuple[str, str, dict]:
         """Journal, then post. Returns (status, action, body) as finally sent. A HelpdeskError
         other than 422 propagates and leaves the intent pending for the next run."""
-        self.journal.intent(ticket_id, self.run_id, action, body)
+        self.journal.intent(ticket_id, self.run_id, action, body, self.scope)
         try:
             status = self.hd.act(ticket_id, action, body)
         except Invalid as exc:
             # One fallback, never a loop. It is journaled too, so a crash replays the fallback.
             action, body = "handoff", fallback_handoff(body, exc.problems)
-            self.journal.intent(ticket_id, self.run_id, action, body)
+            self.journal.intent(ticket_id, self.run_id, action, body, self.scope)
             try:
                 status = "fallback_" + self.hd.act(ticket_id, action, body)
             except Invalid:
@@ -96,7 +97,7 @@ class Runner:
 
     def recover(self) -> None:
         """Settle intents a previous run journaled but never confirmed. No model call."""
-        for ticket_id, intent in self.journal.pending().items():
+        for ticket_id, intent in self.journal.pending(self.scope).items():
             started = self._start_ticket()
             action, body = intent["action"], intent["body"]
             try:
@@ -138,6 +139,7 @@ class Runner:
 
     def run(self, limit: int | None = None) -> dict:
         status = self.hd.status()
+        self.scope = f"{status.get('mode')}@{self.hd.http.base_url}"
         print(
             f"helpdesk: mode={status.get('mode')} open={status.get('open_tickets')} "
             f"handled={status.get('handled_tickets')}"

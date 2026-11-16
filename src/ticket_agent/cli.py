@@ -87,11 +87,12 @@ def cmd_reset(args: argparse.Namespace) -> None:
     # Re-opens every practice ticket. Never called from `run`, and only with an explicit --yes.
     if not args.yes:
         sys.exit("reset re-opens all practice tickets. Re-run with --yes to confirm.")
-    print(json.dumps(helpdesk().reset(), indent=2))
-    # Old intents refer to answers that no longer exist. They must not replay on reopened tickets.
+    # Old intents refer to answers that no longer exist and must not replay on reopened
+    # tickets. Archive first: if the reset response is lost, the journal is already aside.
     archived = Journal().archive()
     if archived:
         print(f"journal archived to {archived.relative_to(ROOT)}")
+    print(json.dumps(helpdesk().reset(), indent=2))
 
 
 def main(argv: list[str] | None = None) -> None:

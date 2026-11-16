@@ -30,12 +30,15 @@ class Journal:
             # fsync so an intent survives a power cut, not only a crash of this process.
             os.fsync(fh.fileno())
 
-    def intent(self, ticket_id: str, run_id: str, action: str, body: dict) -> None:
+    def intent(self, ticket_id: str, run_id: str, action: str, body: dict, scope: str) -> None:
+        """`scope` names the helpdesk and mode the decision was made for. Ticket ids repeat
+        across practice and live sets, so an intent only replays in its own scope."""
         self._append(
             {
                 "event": "intent",
                 "ticket_id": ticket_id,
                 "run_id": run_id,
+                "scope": scope,
                 "action": action,
                 "body": body,
             }
@@ -64,10 +67,12 @@ class Journal:
                 raise
         return out
 
-    def pending(self) -> dict[str, dict]:
-        """ticket_id -> its latest intent, for tickets whose latest event is an intent."""
+    def pending(self, scope: str) -> dict[str, dict]:
+        """ticket_id -> its latest intent in this scope, when that intent has no result yet."""
         latest: dict[str, dict] = {}
         for r in self.records():
+            if r["event"] == "intent" and r.get("scope") != scope:
+                continue
             latest[r["ticket_id"]] = r
         return {tid: r for tid, r in latest.items() if r["event"] == "intent"}
 
