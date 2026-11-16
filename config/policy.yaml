@@ -1,41 +1,34 @@
-# Routing thresholds and model settings. Code in src/ticket_agent/policy.py reads this.
-# Env vars TICKET_AGENT_TRIAGE_MODEL and TICKET_AGENT_DRAFT_MODEL override the models.
+# Model settings and policy thresholds. src/ticket_agent/policy.py reads this file.
+# TICKET_AGENT_MODEL overrides the model for every call without editing this file.
 
-models:
-  triage: gemini-3.1-flash-lite
-  draft: gemini-3.1-flash-lite
+model: gemini-3.1-flash-lite
 
 # Gemini 3 thinking is controlled by thinking_level (never thinking_budget). minimal is the
-# cheapest level and enough for single-ticket classification. Some models do not accept it:
-# gemini-3.8-flash supports low, medium and high only, so it gets an override below.
+# cheapest level. Some models do not accept it, so a per-model override is possible.
 thinking_level: minimal
 thinking_level_by_model:
   gemini-3.8-flash: low
 
-# max_output_tokens bounds thinking plus the answer, so leave plenty of room above the JSON.
-# A MAX_TOKENS finish is treated as a failure and the ticket goes to a human.
-max_tokens:
-  triage: 4096
-  draft: 4096
+# max_output_tokens bounds thinking plus the answer. A MAX_TOKENS finish is a failure and the
+# ticket goes to a human, so leave room above the expected JSON.
+max_tokens: 4096
 
-# Client-side throttle. Free-tier limits are per project and only visible in AI Studio, so
-# this stays conservative. Raise it on the paid tier.
-max_rpm: 10
-# SDK attempts for 429 and 503 with exponential backoff, counting the first request, so 5
-# means up to four retries. These never count as a ticket failure.
-retry_attempts: 5
+# Client-side cap on Gemini requests per minute, and SDK attempts on 429 and 503 counting the
+# first request. This backoff is separate from the helpdesk's.
+max_rpm: 30
+retry_attempts: 4
 
-# A run stops after this many consecutive triage failures. A wrong model id or key fails
-# every ticket the same way and there is no point paying for 30 of them.
+# The run stops after this many tickets in a row hit a hard failure (model unavailable or a
+# post that failed after retries). The same cause usually fails every ticket.
 max_consecutive_failures: 3
 
-routing:
-  # Drafts and queue routing only for languages the team can review quickly.
-  allowed_languages: [en]
-  # Medium confidence is fine for a medium or low priority ticket. On these it is not.
-  escalate_priorities_on_medium_confidence: [urgent, high]
-  # Where a confident ticket goes. No queue for question (draft) or other (human).
-  queues:
-    bug: engineering
-    billing: billing
-    feature_request: product
+# The model reports a categorical confidence. These numbers are what the API receives. They
+# are a fixed mapping, not a calibrated probability.
+confidence_scores:
+  high: 0.9
+  medium: 0.6
+  low: 0.3
+
+# Fallback handoff when the model is unavailable and the detector cannot tell the language.
+# Most of the client's customers write Dutch.
+default_language: nl

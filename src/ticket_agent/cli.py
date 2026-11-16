@@ -2,17 +2,55 @@
 
 import argparse
 import json
+import os
 import sys
+from datetime import UTC, datetime
 
 from dotenv import load_dotenv
 
+from ticket_agent.audit import RunLog
+from ticket_agent.decide import Agent
 from ticket_agent.helpdesk import Fatal, Helpdesk, Settings
 from ticket_agent.journal import Journal
+from ticket_agent.llm import GeminiClient
 from ticket_agent.models import ROOT
+from ticket_agent.pipeline import Runner
+from ticket_agent.policy import load_config
 
 
 def helpdesk() -> Helpdesk:
     return Helpdesk(Settings.from_env())
+
+
+def agent():
+    """Fail fast on a missing key. Checks presence only and never reads the value."""
+    # The SDK also reads GOOGLE_API_KEY and prefers it, which would let a stale shell variable
+    # silently win over .env. Accept either one, refuse both.
+    names = [n for n in ("GEMINI_API_KEY", "GOOGLE_API_KEY") if os.environ.get(n)]
+    if not names:
+        raise Fatal("GEMINI_API_KEY is not set. Put it in .env or export it. See .env.example.")
+    if len(names) == 2:
+        raise Fatal("Both GEMINI_API_KEY and GOOGLE_API_KEY are set. Unset one of them.")
+    cfg = load_config()
+    return Agent(GeminiClient(cfg.max_rpm, cfg.retry_attempts), cfg), cfg
+
+
+def cmd_run(args: argparse.Namespace) -> None:
+    hd = helpdesk()
+    ag, cfg = agent()
+    run_id = datetime.now(UTC).strftime("%Y%m%d-%H%M%S") + ("-dry" if args.dry_run else "")
+    runner = Runner(
+        hd,
+        ag.decide,
+        Journal(),
+        RunLog(run_id),
+        run_id,
+        dry_run=args.dry_run,
+        max_failures=cfg.max_consecutive_failures,
+    )
+    summary = runner.run(limit=args.limit)
+    print(f"\nrun_id: {run_id}  log: logs/{run_id}.jsonl")
+    print(json.dumps(summary["statuses"], indent=2))
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -36,6 +74,10 @@ def main(argv: list[str] | None = None) -> None:
     load_dotenv(ROOT / ".env", override=False)
     parser = argparse.ArgumentParser(prog="ticket-agent")
     sub = parser.add_subparsers(dest="cmd", required=True)
+    run = sub.add_parser("run", help="decide and act on every open ticket")
+    run.add_argument("--dry-run", action="store_true", help="decide and log, never post")
+    run.add_argument("--limit", type=int, default=None, help="only the first N open tickets")
+    run.set_defaults(func=cmd_run)
     st = sub.add_parser("status", help="show the helpdesk mode and open ticket count")
     st.set_defaults(func=cmd_status)
     rs = sub.add_parser("reset", help="re-open all practice tickets (POST /practice/reset)")
