@@ -9,6 +9,11 @@ from pydantic import BaseModel
 # Project root, so prompts, config and data resolve the same from any working directory.
 ROOT = Path(__file__).resolve().parents[2]
 
+# The values the helpdesk API accepts.
+LANGUAGES = ("nl", "en", "de")
+CATEGORIES = ("bug", "billing", "feature_request", "question", "other")
+PRIORITIES = ("P1", "P2", "P3", "P4")
+
 
 class Ticket(BaseModel):
     id: str
