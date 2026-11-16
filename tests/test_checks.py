@@ -12,14 +12,17 @@ def check(reply: str, cited: list[str], language: str = "nl") -> dict:
 
 
 GOOD_NL = (
-    "Hoi, ga naar app.roosterly.nl/login en klik op \"Wachtwoord vergeten\". "
+    'Hoi, ga naar app.roosterly.nl/login en klik op "Wachtwoord vergeten". '
     "De link is 60 minuten geldig. Geen mail na 10 minuten? Kijk dan in je spam. Roosterly Support"
 )
 
 
 def test_grounded_dutch_reply_passes_every_code_check() -> None:
     assert check(GOOD_NL, ["F01"]) == {
-        "language": None, "numbers": None, "paths": None, "payment": None
+        "language": None,
+        "numbers": None,
+        "paths": None,
+        "payment": None,
     }
 
 
