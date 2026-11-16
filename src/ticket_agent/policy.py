@@ -70,7 +70,11 @@ def fallback(ticket: Ticket, error: str, cfg: Config) -> Result:
 
 
 def gate(
-    md: ModelDecision, flags: list[str], faq_ids: set[str], check_failure: str | None = None
+    md: ModelDecision,
+    flags: list[str],
+    faq_ids: set[str],
+    check_failure: str | None = None,
+    ticket_language: str | None = None,
 ) -> str | None:
     """The first rule that forbids the model's action, or None if it stands. Handoff is
     always allowed. Order: client rules, injection, language, then per-action checks."""
@@ -82,6 +86,10 @@ def gate(
         return "injection_suspected"
     if md.language not in LANGUAGES:
         return "language_not_supported"
+    if ticket_language and ticket_language != md.language:
+        # The reply check compares the reply with the model's language, so a ticket misread as
+        # Dutch with a Dutch reply passes it. The detector reads the ticket independently.
+        return "language_disagrees_with_ticket"
     if md.confidence != "high":
         return f"{md.action}_not_confident"
     if md.action == "close":
@@ -107,11 +115,12 @@ def finalize(
 ) -> Result:
     hits = cfg.keyword_hits(ticket.text)
     flags = list(dict.fromkeys([str(f) for f in md.sensitive] + hits))
-    blocked = gate(md, flags, faq_ids, check_failure)
+    detected = lang.detect(ticket.text)
+    blocked = gate(md, flags, faq_ids, check_failure, detected)
     action = "handoff" if blocked else md.action
-    # The API only accepts nl, en and de. Another language is always a handoff, posted as en
-    # with the real situation in the note.
-    language = md.language if md.language in LANGUAGES else "en"
+    # The detector only answers with clear evidence, so when it disagrees it wins. Otherwise the
+    # API only accepts nl, en and de: another language is a handoff, posted as en with a note.
+    language = detected or (md.language if md.language in LANGUAGES else "en")
     body = {
         "language": language,
         "category": md.category,
@@ -135,6 +144,8 @@ def finalize(
         "gate": blocked,
         "flags": flags,
         "keyword_hits": hits,
+        "model_language": md.language,
+        "detected_language": detected,
         "injection_suspected": md.injection_suspected,
         "faq_ids": md.faq_ids,
         "confidence_level": md.confidence,

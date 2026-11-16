@@ -86,7 +86,8 @@ def test_injection_blocks_reply_and_close() -> None:
 
 
 def test_other_language_is_handed_off_and_posted_as_en() -> None:
-    r = run(md(language="other"))
+    french = Ticket(id="T5", subject="Bonjour", body="Comment ajouter un employé au planning ?")
+    r = run(md(language="other"), french)
     assert r.action == "handoff" and r.body["language"] == "en"
     assert "other than Dutch" in r.body["handoff_note"]
 
@@ -105,3 +106,15 @@ def test_model_handoff_is_always_allowed() -> None:
     r = run(md(action="handoff", handoff_note="Needs a human."))
     assert r.action == "handoff" and r.record["gate"] is None
     assert r.body["handoff_note"] == "Needs a human."
+
+
+def test_ticket_language_overrules_a_model_that_misread_it() -> None:
+    english = Ticket(id="T3", subject="Question", body="How can I do this for my team, please?")
+    r = run(md(language="nl"), english)
+    assert r.action == "handoff" and r.record["gate"] == "language_disagrees_with_ticket"
+    assert r.body["language"] == "en" and r.record["model_language"] == "nl"
+
+
+def test_detector_silent_means_the_model_language_stands() -> None:
+    r = run(md(language="de"), Ticket(id="T4", subject="", body="ok"))
+    assert r.body["language"] == "de" and r.record["detected_language"] is None
