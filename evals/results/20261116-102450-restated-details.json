@@ -1,0 +1,618 @@
+{
+ "label": "restated-details",
+ "model": "gemini-3.1-flash-lite",
+ "runs": [
+  [
+   {
+    "id": "E01",
+    "gold": {
+     "language": "en",
+     "category": "bug",
+     "priority": "P3",
+     "action": "reply"
+    },
+    "got": {
+     "language": "en",
+     "category": "bug",
+     "priority": "P3",
+     "action": "handoff"
+    },
+    "proposed_action": "reply",
+    "gate": "check_judge",
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F12"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "3 unsupported claim(s)"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.001163
+   },
+   {
+    "id": "E02",
+    "gold": {
+     "language": "nl",
+     "category": "billing",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "proposed_action": "reply",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F06"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "pass"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0010394999999999998
+   },
+   {
+    "id": "E03",
+    "gold": {
+     "language": "nl",
+     "category": "billing",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "got": {
+     "language": "nl",
+     "category": "billing",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "proposed_action": "handoff",
+    "gate": null,
+    "flags": [
+     "refund_or_dispute"
+    ],
+    "keyword_hits": [
+     "refund_or_dispute"
+    ],
+    "faq_ids": [],
+    "checks": {},
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0008187499999999999
+   },
+   {
+    "id": "E04",
+    "gold": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "handoff"
+    },
+    "proposed_action": "reply",
+    "gate": "check_judge",
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F03"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "1 unsupported claim(s)"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0011855
+   },
+   {
+    "id": "E05",
+    "gold": {
+     "language": "nl",
+     "category": "feature_request",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "feature_request",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "proposed_action": "reply",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F10"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "pass"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.00110325
+   },
+   {
+    "id": "E06",
+    "gold": {
+     "language": "en",
+     "category": "bug",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "got": {
+     "language": "en",
+     "category": "bug",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "proposed_action": "handoff",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F11"
+    ],
+    "checks": {},
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.00088225
+   },
+   {
+    "id": "E07",
+    "gold": {
+     "language": "nl",
+     "category": "billing",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "proposed_action": "reply",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F05"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "pass"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.001083
+   },
+   {
+    "id": "E08",
+    "gold": {
+     "language": "nl",
+     "category": "other",
+     "priority": "P4",
+     "action": "close"
+    },
+    "got": {
+     "language": "nl",
+     "category": "other",
+     "priority": "P4",
+     "action": "close"
+    },
+    "proposed_action": "close",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [],
+    "checks": {},
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.00075125
+   },
+   {
+    "id": "E09",
+    "gold": {
+     "language": "nl",
+     "category": "other",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "got": {
+     "language": "nl",
+     "category": "other",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "proposed_action": "handoff",
+    "gate": null,
+    "flags": [
+     "personal_data_request"
+    ],
+    "keyword_hits": [
+     "personal_data_request"
+    ],
+    "faq_ids": [],
+    "checks": {},
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0008064999999999999
+   },
+   {
+    "id": "E10",
+    "gold": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "proposed_action": "reply",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F11"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "pass"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.00098675
+   }
+  ],
+  [
+   {
+    "id": "E01",
+    "gold": {
+     "language": "en",
+     "category": "bug",
+     "priority": "P3",
+     "action": "reply"
+    },
+    "got": {
+     "language": "en",
+     "category": "bug",
+     "priority": "P3",
+     "action": "handoff"
+    },
+    "proposed_action": "reply",
+    "gate": "check_judge",
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F12"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "3 unsupported claim(s)"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0011489999999999998
+   },
+   {
+    "id": "E02",
+    "gold": {
+     "language": "nl",
+     "category": "billing",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "proposed_action": "reply",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F06"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "pass"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0010515
+   },
+   {
+    "id": "E03",
+    "gold": {
+     "language": "nl",
+     "category": "billing",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "got": {
+     "language": "nl",
+     "category": "billing",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "proposed_action": "handoff",
+    "gate": null,
+    "flags": [
+     "refund_or_dispute"
+    ],
+    "keyword_hits": [
+     "refund_or_dispute"
+    ],
+    "faq_ids": [],
+    "checks": {},
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.00082175
+   },
+   {
+    "id": "E04",
+    "gold": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "handoff"
+    },
+    "proposed_action": "reply",
+    "gate": "check_judge",
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F03"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "1 unsupported claim(s)"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0011949999999999999
+   },
+   {
+    "id": "E05",
+    "gold": {
+     "language": "nl",
+     "category": "feature_request",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "feature_request",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "proposed_action": "reply",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F10"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "pass"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.00112725
+   },
+   {
+    "id": "E06",
+    "gold": {
+     "language": "en",
+     "category": "bug",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "got": {
+     "language": "en",
+     "category": "bug",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "proposed_action": "handoff",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F11"
+    ],
+    "checks": {},
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0008507499999999999
+   },
+   {
+    "id": "E07",
+    "gold": {
+     "language": "nl",
+     "category": "billing",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "proposed_action": "reply",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F05"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "pass"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0010719999999999998
+   },
+   {
+    "id": "E08",
+    "gold": {
+     "language": "nl",
+     "category": "other",
+     "priority": "P4",
+     "action": "close"
+    },
+    "got": {
+     "language": "nl",
+     "category": "other",
+     "priority": "P4",
+     "action": "close"
+    },
+    "proposed_action": "close",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [],
+    "checks": {},
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.00073925
+   },
+   {
+    "id": "E09",
+    "gold": {
+     "language": "nl",
+     "category": "other",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "got": {
+     "language": "nl",
+     "category": "other",
+     "priority": "P2",
+     "action": "handoff"
+    },
+    "proposed_action": "handoff",
+    "gate": null,
+    "flags": [
+     "personal_data_request"
+    ],
+    "keyword_hits": [
+     "personal_data_request"
+    ],
+    "faq_ids": [],
+    "checks": {},
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.000808
+   },
+   {
+    "id": "E10",
+    "gold": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "got": {
+     "language": "nl",
+     "category": "question",
+     "priority": "P4",
+     "action": "reply"
+    },
+    "proposed_action": "reply",
+    "gate": null,
+    "flags": [],
+    "keyword_hits": [],
+    "faq_ids": [
+     "F11"
+    ],
+    "checks": {
+     "language": "pass",
+     "numbers": "pass",
+     "paths": "pass",
+     "payment": "pass",
+     "back_translation": "pass",
+     "judge": "pass"
+    },
+    "confidence": 0.9,
+    "fallback": false,
+    "cost_usd": 0.0009687499999999999
+   }
+  ]
+ ]
+}
