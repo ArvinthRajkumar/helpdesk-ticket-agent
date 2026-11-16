@@ -21,9 +21,10 @@ def matches(text: str) -> bool:
 GOOGLE_SHAPE = "GEMINI_API_KEY=" + "AI" + "za" + "A" * 35
 ANTHROPIC_SHAPE = "key = '" + "sk-" + "ant-" + "x" * 30 + "'"
 GENERIC_SHAPE = "api_key: " + "0123456789abcdef" * 2 + "0123"
+HELPDESK_SHAPE = "HELPDESK_API_KEY=" + "nrd_" + "round_" + "x7" * 8
 
 
-@pytest.mark.parametrize("line", [GOOGLE_SHAPE, ANTHROPIC_SHAPE, GENERIC_SHAPE])
+@pytest.mark.parametrize("line", [GOOGLE_SHAPE, ANTHROPIC_SHAPE, GENERIC_SHAPE, HELPDESK_SHAPE])
 def test_secret_patterns_catch_real_shapes(line: str) -> None:
     assert matches(line)
 
@@ -32,6 +33,8 @@ def test_secret_patterns_catch_real_shapes(line: str) -> None:
     "line",
     [
         "GEMINI_API_KEY=",  # the .env.example placeholder
+        "HELPDESK_API_KEY=",
+        "export KEY=" + "nrd_" + "round_...",  # the documented placeholder in the API reference
         "AIzaTooShort",
         "The AIza prefix is documented in guard_commit.py",
         "model: gemini-3.1-flash-lite",

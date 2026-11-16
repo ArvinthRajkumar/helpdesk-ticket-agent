@@ -10,12 +10,14 @@ import re
 import subprocess
 import sys
 
-# Google API keys are AIza plus 35 URL-safe characters, Anthropic keys start with sk-ant-.
+# Google API keys are AIza plus 35 URL-safe characters, Anthropic keys start with sk-ant-,
+# and the helpdesk key for this round starts with nrd_round_.
 # The generic pattern catches other long tokens assigned to key-like names. False positives
 # are cheap: the user sees the reason.
 SECRET_PATTERNS = [
     re.compile(r"AIza[0-9A-Za-z_-]{35}"),
     re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}"),
+    re.compile(r"nrd_round_[A-Za-z0-9_-]{6,}"),
     re.compile(r"(?i)(api[_-]?key|secret|token)\s*[=:]\s*['\"]?[A-Za-z0-9_-]{32,}"),
 ]
 BLOCKED_PATHS = re.compile(r"(^|/)\.env(\..+)?$")

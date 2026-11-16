@@ -116,7 +116,8 @@ class GeminiClient:
                 # max_output_tokens, so the cap is generous and truncation is a failure.
                 thinking_config=types.ThinkingConfig(thinking_level=thinking),
                 max_output_tokens=max_tokens,
-                # No temperature: Google marks it deprecated and ignored on Gemini 3.6 and later.
+                # No temperature: Google recommends the default 1.0 for Gemini 3 models, and
+                # newer ones ignore it.
             ),
         )
         latency = int((time.perf_counter() - started) * 1000)
