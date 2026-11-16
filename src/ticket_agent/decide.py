@@ -68,6 +68,9 @@ def usage_record(calls: list[Call], pricing: dict) -> dict:
             totals[k] += getattr(c.usage, k)
         step = cost_usd(c.model, c.usage, pricing)
         cost = None if cost is None or step is None else cost + step
+    # Rounded: float noise such as 0.00113824999... is unreadable and looks like a card number
+    # to a scanner. Eight decimals keeps sub-cent precision per ticket.
+    cost = round(cost, 8) if cost is not None else None
     return {**totals, "model_calls": len(calls), "cost_usd": cost}
 
 
