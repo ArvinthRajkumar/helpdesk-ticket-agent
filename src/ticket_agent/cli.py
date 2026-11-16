@@ -98,6 +98,10 @@ def main(argv: list[str] | None = None) -> None:
     # The repo-root .env is read into the process environment only. A variable already
     # exported wins, and nothing in this codebase reads, prints or logs a value from it.
     load_dotenv(ROOT / ".env", override=False)
+    # A Windows console defaults to cp1252, which cannot print the menu arrow or Dutch quotes.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="ticket-agent")
     sub = parser.add_subparsers(dest="cmd", required=True)
     run = sub.add_parser("run", help="decide and act on every open ticket")

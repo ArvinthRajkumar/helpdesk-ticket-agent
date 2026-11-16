@@ -24,7 +24,7 @@ def load_examples(hd: Helpdesk, refresh: bool = False, cache: Path = CACHE) -> l
         return json.loads(cache.read_text(encoding="utf-8"))
     examples = hd.examples()
     cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps(examples, ensure_ascii=False), encoding="utf-8")
+    cache.write_text(json.dumps(examples, ensure_ascii=False), encoding="utf-8", newline="\n")
     return examples
 
 
@@ -142,10 +142,9 @@ def run_eval(hd: Helpdesk, agent: Agent, runs: int, label: str, refresh: bool = 
     results = EVALS_DIR / "results" / f"{stamp}-{label}.json"
     results.parent.mkdir(parents=True, exist_ok=True)
     payload = {"label": label, "model": agent.cfg.model, "runs": all_rows}
-    results.write_text(json.dumps(payload, indent=1), encoding="utf-8")
+    results.write_text(json.dumps(payload, indent=1), encoding="utf-8", newline="\n")
     report = EVALS_DIR / "report.md"
     text = render(all_rows, agent.cfg.model, label)
-    report.write_text(
-        text + f"\nRaw results: `{results.relative_to(ROOT).as_posix()}`\n", encoding="utf-8"
-    )
+    footer = f"\nRaw results: `{results.relative_to(ROOT).as_posix()}`\n"
+    report.write_text(text + footer, encoding="utf-8", newline="\n")
     return report

@@ -24,7 +24,7 @@ class Journal:
     def _append(self, record: dict) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         line = json.dumps({"ts": datetime.now(UTC).isoformat(), **record}) + "\n"
-        with self.path.open("a", encoding="utf-8") as fh:
+        with self.path.open("a", encoding="utf-8", newline="\n") as fh:
             fh.write(line)
             fh.flush()
             # fsync so an intent survives a power cut, not only a crash of this process.

@@ -16,7 +16,7 @@ class RunLog:
 
     def write(self, record: dict) -> None:
         # Open, append, close per ticket: a crash keeps every earlier line intact.
-        with self.path.open("a", encoding="utf-8") as fh:
+        with self.path.open("a", encoding="utf-8", newline="\n") as fh:
             fh.write(json.dumps({"ts": datetime.now(UTC).isoformat(), **record}) + "\n")
 
 
