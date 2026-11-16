@@ -92,8 +92,9 @@ def test_other_language_is_handed_off_and_posted_as_en() -> None:
     assert "other than Dutch" in r.body["handoff_note"]
 
 
-def test_close_only_for_confident_other() -> None:
-    assert run(md(action="close", category="other")).action == "close"
+def test_close_only_for_confident_other_without_faq() -> None:
+    assert run(md(action="close", category="other", faq_ids=[])).action == "close"
+    assert run(md(action="close", category="other")).record["gate"] == "close_cites_faq"
     assert run(md(action="close", category="bug")).action == "handoff"
     assert run(md(action="close", category="other", confidence="medium")).action == "handoff"
 

@@ -93,8 +93,11 @@ def gate(
     if md.confidence != "high":
         return f"{md.action}_not_confident"
     if md.action == "close":
-        # Close is for spam and empty tickets only. Anything with a real category is answered.
-        return None if md.category == "other" else "close_needs_category_other"
+        # Close is for spam and empty tickets only and no human sees the ticket afterwards.
+        # A real category, or an FAQ entry the model thinks applies, means it is not spam.
+        if md.category != "other":
+            return "close_needs_category_other"
+        return "close_cites_faq" if md.faq_ids else None
     if not md.faq_ids:
         return "reply_without_faq"
     unknown = [i for i in md.faq_ids if i not in faq_ids]
