@@ -1,7 +1,7 @@
 """Code checks on replies. Replies here are written for the tests, not taken from tickets."""
 
 from ticket_agent.checks import code_checks
-from ticket_agent.decide import load_faq
+from ticket_agent.decide import FAQ_PATH, load_faq
 from ticket_agent.models import card_numbers, has_payment_details, luhn_ok
 
 FAQ_TEXT, FAQ = load_faq()
@@ -52,6 +52,15 @@ def test_menu_path_must_match_the_faq_step_by_step() -> None:
     assert check(ok, ["F04"])["paths"] is None
     made_up = "Hoi, ga naar Instellingen → Export → Salaris om dit in te stellen. Roosterly Support"
     assert "Instellingen → Export" in check(made_up, ["F04"])["paths"]
+
+
+def test_german_reply_keeps_the_dutch_path_and_the_faq_gloss_verbatim() -> None:
+    verbatim = "Hallo, die Sprache wählen Sie unter Profiel → Taal (Profile → Language)."
+    assert check(verbatim, ["F08"], "de")["paths"] is None
+    translated = "Hallo, die Sprache wählen Sie unter Profiel → Taal (Profil → Sprache)."
+    assert check(translated, ["F08"], "de")["paths"] == "menu step not in faq: Profil → Sprache"
+    prompt = (FAQ_PATH.parent.parent / "prompts" / "decide.md").read_text(encoding="utf-8")
+    assert "Never translate a menu name or its bracketed meaning" in prompt
 
 
 def test_ascii_arrows_are_checked_too() -> None:
