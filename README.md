@@ -51,4 +51,4 @@ Nordavo's 10 labelled examples, two runs each (`evals/results/`):
 
 **Next:** the judge sometimes lists an omission as an unsupported claim. I would ask it twice and hold only on agreement.
 
-**Brief change:** the FAQ has no German menu names, although F08 says the app runs in German, so German how-to replies (T022, T029) were held.
+**Brief change:** the FAQ gives menu names in one language only, with English meanings, although F08 says the app runs in German. German replies therefore quote the English meaning, not the menu a German user sees.
