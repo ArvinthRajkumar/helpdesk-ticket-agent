@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from ticket_agent.llm import (
     FakeClient,
+    ModelConfigError,
     Throttle,
     fake_api_error,
     fake_response,
@@ -64,8 +65,14 @@ def test_api_errors_are_recorded_with_status_not_raised() -> None:
     out = call(FakeClient([fake_api_error(503)]))
     assert out.parsed is None and out.calls == []
     assert out.error == "api_error: ServerError status=503"
-    out = call(FakeClient([fake_api_error(400)]))
-    assert out.error == "api_error: ClientError status=400"
+    out = call(FakeClient([fake_api_error(429)]))
+    assert out.error == "api_error: ClientError status=429"
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404])
+def test_config_errors_stop_instead_of_falling_back(status: int) -> None:
+    with pytest.raises(ModelConfigError):
+        call(FakeClient([fake_api_error(status)]))
 
 
 def test_programming_errors_propagate() -> None:

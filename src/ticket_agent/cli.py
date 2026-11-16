@@ -13,7 +13,7 @@ from ticket_agent.decide import Agent
 from ticket_agent.evaluate import run_eval
 from ticket_agent.helpdesk import Fatal, Helpdesk, Settings
 from ticket_agent.journal import Journal
-from ticket_agent.llm import GeminiClient
+from ticket_agent.llm import GeminiClient, ModelConfigError
 from ticket_agent.models import ROOT
 from ticket_agent.pipeline import Runner
 from ticket_agent.policy import load_config
@@ -127,5 +127,5 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     try:
         args.func(args)
-    except Fatal as exc:
+    except (Fatal, ModelConfigError) as exc:
         sys.exit(f"Stopped: {exc}")

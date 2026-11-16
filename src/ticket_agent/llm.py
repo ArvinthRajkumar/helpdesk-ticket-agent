@@ -16,6 +16,12 @@ from google.genai import errors, types
 from pydantic import BaseModel, ValidationError
 
 RETRYABLE_STATUS = [429, 503]
+# A bad key, a missing permission or an unknown model fails every ticket the same way.
+CONFIG_STATUS = (400, 401, 403, 404)
+
+
+class ModelConfigError(Exception):
+    """Gemini refused the request itself. The run stops before anything is posted."""
 
 
 @dataclass
@@ -219,6 +225,9 @@ def structured_call(
                 thinking=thinking,
             )
         except errors.APIError as exc:
+            if exc.code in CONFIG_STATUS:
+                msg = f"Gemini rejected the request (status {exc.code})."
+                raise ModelConfigError(msg) from None
             # After the SDK's own retries. Recorded so the ticket routes to a human; bugs in
             # this code are not APIErrors and crash loudly, resume picks up afterwards.
             return Outcome(None, f"api_error: {type(exc).__name__} status={exc.code}", calls)
