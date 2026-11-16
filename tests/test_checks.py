@@ -92,10 +92,19 @@ def test_card_detection_uses_luhn() -> None:
 TICKET = "Hallo, ik ben Sanne Vermeer van Bakkerij Zonnig. Waar vind ik Rooster → Verzoeken?"
 
 
-def test_name_or_company_copied_from_the_ticket_fails_without_logging_it() -> None:
-    reply = "Hoi Sanne, je vindt dit onder Rooster → Verzoeken. Roosterly Support"
-    problem = code_checks(reply, "nl", ["F03"], FAQ, FAQ_TEXT, TICKET)["ticket_details"]
-    assert problem == "reply repeats 1 name(s) from the ticket" and "Sanne" not in problem
+def details(reply: str, language: str = "nl", ticket: str = TICKET) -> str | None:
+    return code_checks(reply, language, ["F03"], FAQ, FAQ_TEXT, ticket)["ticket_details"]
+
+
+def test_greeting_with_the_customers_own_name_passes() -> None:
+    assert details("Hoi Sanne, je vindt dit onder Rooster → Verzoeken. Roosterly Support") is None
+
+
+def test_any_other_name_is_held_without_logging_it() -> None:
+    invented = details("Hoi Anouk, je vindt dit onder Rooster → Verzoeken. Roosterly Support")
+    assert invented == "reply repeats 1 name(s) from the ticket" and "Anouk" not in invented
+    company = "Hoi Sanne, het team van Bakkerij Zonnig vindt dit onder Rooster → Verzoeken."
+    assert details(company) is not None
 
 
 def test_menu_names_from_the_faq_are_not_ticket_details() -> None:
@@ -107,5 +116,7 @@ def test_german_nouns_are_not_names_but_a_greeting_name_is() -> None:
     ticket = "Guten Tag, hier ist Jonas. Wie kann ich die Sprache der Mitarbeiter ändern?"
     nouns = "Hallo, jeder Nutzer wählt die Sprache für die Mitarbeiter selbst. Roosterly Support"
     assert code_checks(nouns, "de", ["F08"], FAQ, FAQ_TEXT, ticket)["ticket_details"] is None
-    named = "Hallo Jonas, jeder Nutzer wählt die Sprache selbst. Roosterly Support"
-    assert code_checks(named, "de", ["F08"], FAQ, FAQ_TEXT, ticket)["ticket_details"]
+    own = "Hallo Jonas, jeder Nutzer wählt die Sprache selbst. Roosterly Support"
+    assert code_checks(own, "de", ["F08"], FAQ, FAQ_TEXT, ticket)["ticket_details"] is None
+    other = "Hallo Lukas, jeder Nutzer wählt die Sprache selbst. Roosterly Support"
+    assert code_checks(other, "de", ["F08"], FAQ, FAQ_TEXT, ticket)["ticket_details"]

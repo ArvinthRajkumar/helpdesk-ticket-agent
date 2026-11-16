@@ -56,12 +56,23 @@ def _flat(text: str) -> str:
     return re.sub(r"\s+", " ", text)
 
 
+# "Hoi Anouk," at the very start of a reply: one greeting word, a capitalised name, a comma.
+GREETING_NAME = re.compile(r"^\s*\w+\s+([A-ZÀ-Ý][\w-]+)\s*[,!]")
+
+
 def _ticket_details(reply: str, language: str, ticket_text: str, faq_text: str) -> int:
-    """Capitalised words the reply took from the ticket and the FAQ does not contain: a name,
-    a company, a product. Sentence-initial words are skipped. German capitalises every noun,
-    so there only the word right after the greeting (where a name would go) is checked."""
+    """Names the reply should not contain. The greeting may use the name the customer wrote
+    in the ticket; a greeting name the ticket does not contain is invented and counts. Any
+    other capitalised word the reply took from the ticket and the FAQ lacks (a colleague, a
+    company) counts too. Sentence-initial words are skipped. German capitalises every noun,
+    so there only the greeting slot is checked."""
     found = 0
+    greeting = GREETING_NAME.match(reply)
+    if greeting and not re.search(rf"\b{re.escape(greeting.group(1))}\b", ticket_text):
+        found += 1
     for i, m in enumerate(re.finditer(r"\b[A-ZÀ-Ý][\w-]{2,}", reply)):
+        if greeting and m.start() == greeting.start(1):
+            continue  # the greeting slot was judged above
         before = reply[: m.start()].rstrip(" \t")
         if not before or before[-1] in ".!?:\n":
             continue
