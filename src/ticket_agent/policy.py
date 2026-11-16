@@ -69,7 +69,9 @@ def fallback(ticket: Ticket, error: str, cfg: Config) -> Result:
     return Result("handoff", body, record, hard_failure=True)
 
 
-def gate(md: ModelDecision, flags: list[str], faq_ids: set[str]) -> str | None:
+def gate(
+    md: ModelDecision, flags: list[str], faq_ids: set[str], check_failure: str | None = None
+) -> str | None:
     """The first rule that forbids the model's action, or None if it stands. Handoff is
     always allowed. Order: client rules, injection, language, then per-action checks."""
     if md.action == "handoff":
@@ -92,13 +94,20 @@ def gate(md: ModelDecision, flags: list[str], faq_ids: set[str]) -> str | None:
         return f"reply_cites_unknown_faq_{unknown[0]}"
     if not md.draft_reply.strip():
         return "reply_empty"
-    return None
+    # Last: the grounding and language checks in checks.py, run only on a reply that got here.
+    return check_failure
 
 
-def finalize(md: ModelDecision, ticket: Ticket, cfg: Config, faq_ids: set[str]) -> Result:
+def finalize(
+    md: ModelDecision,
+    ticket: Ticket,
+    cfg: Config,
+    faq_ids: set[str],
+    check_failure: str | None = None,
+) -> Result:
     hits = cfg.keyword_hits(ticket.text)
     flags = list(dict.fromkeys([str(f) for f in md.sensitive] + hits))
-    blocked = gate(md, flags, faq_ids)
+    blocked = gate(md, flags, faq_ids, check_failure)
     action = "handoff" if blocked else md.action
     # The API only accepts nl, en and de. Another language is always a handoff, posted as en
     # with the real situation in the note.

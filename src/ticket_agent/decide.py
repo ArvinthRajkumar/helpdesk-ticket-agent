@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from ticket_agent import policy
+from ticket_agent.checks import run_checks
 from ticket_agent.cost import cost_usd, load_pricing
 from ticket_agent.llm import Call, Client, Outcome, load_prompt, structured_call
 from ticket_agent.models import ROOT, ModelDecision, Ticket
@@ -83,7 +84,24 @@ class Agent:
             result = policy.fallback(ticket, outcome.error or "unknown", self.cfg)
             result.record["model_error"] = outcome.error
         else:
-            result = policy.finalize(outcome.parsed, ticket, self.cfg, set(self.faq))
+            md = outcome.parsed
+            result = policy.finalize(md, ticket, self.cfg, set(self.faq))
+            if result.action == "reply":
+                checks = run_checks(
+                    self.client, self.cfg, md.draft_reply, md.language, md.faq_ids,
+                    self.faq, self.faq_text,
+                )
+                calls += checks.calls
+                if checks.failure:
+                    result = policy.finalize(md, ticket, self.cfg, set(self.faq), checks.failure)
+                result.record.update(
+                    {
+                        "checks": {k: v or "pass" for k, v in checks.results.items()},
+                        "back_translation": checks.back_translation,
+                        "unsupported_claims": checks.unsupported_claims,
+                        "check_prompt_versions": checks.versions,
+                    }
+                )
         result.record.update(
             {
                 "model": self.cfg.model,

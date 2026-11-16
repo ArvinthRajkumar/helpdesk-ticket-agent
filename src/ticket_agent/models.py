@@ -67,6 +67,33 @@ class ModelDecision(BaseModel):
 
 
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+# Shape only, no mod-97: anything that looks like an IBAN is treated as one.
+IBAN = re.compile(r"\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,3})?\b", re.I)
+CARD_CANDIDATE = re.compile(r"\b(?:\d[ -]?){12,18}\d\b")
+
+
+def luhn_ok(digits: str) -> bool:
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        d = int(ch)
+        if i % 2 == 1:
+            d = d * 2 - 9 if d > 4 else d * 2
+        total += d
+    return total % 10 == 0
+
+
+def card_numbers(text: str) -> list[str]:
+    """13 to 19 digit runs that pass the Luhn check, so order numbers rarely match."""
+    found = []
+    for m in CARD_CANDIDATE.finditer(text):
+        digits = re.sub(r"\D", "", m.group(0))
+        if 13 <= len(digits) <= 19 and luhn_ok(digits):
+            found.append(m.group(0))
+    return found
+
+
+def has_payment_details(text: str) -> bool:
+    return bool(IBAN.search(text) or card_numbers(text))
 
 
 def scrub(text: str) -> str:

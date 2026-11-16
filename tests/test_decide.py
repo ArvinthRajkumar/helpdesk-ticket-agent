@@ -50,11 +50,35 @@ def test_plan_and_channel_are_context_outside_the_tags() -> None:
     assert msg.index("Customer plan: Plus") < msg.index("<ticket>")
 
 
-def test_confident_cited_reply_is_posted_as_reply() -> None:
-    result = agent(model_json()).decide(TICKET)
+BACK = json.dumps({"english": "Hello, this is a test. Roosterly Support"})
+CLEAN = json.dumps({"unsupported_claims": []})
+
+
+def test_confident_cited_reply_passes_checks_and_is_posted_as_reply() -> None:
+    result = agent(model_json(), BACK, CLEAN).decide(TICKET)
     assert result.action == "reply"
     assert result.body["confidence"] == 0.9 and "draft_reply" in result.body
-    assert result.record["model_calls"] == 1 and result.record["cost_usd"] > 0
+    assert result.record["model_calls"] == 3 and result.record["cost_usd"] > 0
+    assert set(result.record["checks"].values()) == {"pass"}
+    assert result.record["back_translation"].startswith("Hello")
+
+
+def test_judge_finding_an_unsupported_claim_holds_the_reply() -> None:
+    judged = json.dumps({"unsupported_claims": ["Says the link is valid for a day."]})
+    result = agent(model_json(), BACK, judged).decide(TICKET)
+    assert result.action == "handoff" and result.record["gate"] == "check_judge"
+    assert "draft_reply" not in result.body
+
+
+def test_failed_code_check_skips_the_model_checks() -> None:
+    english = model_json(draft_reply="Hello, please wait a while for the email. Roosterly Support")
+    result = agent(english).decide(TICKET)  # only one canned reply: no further calls allowed
+    assert result.action == "handoff" and result.record["gate"] == "check_language"
+
+
+def test_back_translation_failure_holds_the_reply() -> None:
+    result = agent(model_json(), fake_api_error(503)).decide(TICKET)
+    assert result.action == "handoff" and result.record["gate"] == "check_back_translation"
 
 
 def test_medium_confidence_reply_becomes_handoff_with_the_gate_named() -> None:
