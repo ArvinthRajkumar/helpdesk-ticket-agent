@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from ticket_agent.audit import LOGS_DIR, RunLog, latest_log, read_log
 from ticket_agent.decide import Agent
+from ticket_agent.evaluate import run_eval
 from ticket_agent.helpdesk import Fatal, Helpdesk, Settings
 from ticket_agent.journal import Journal
 from ticket_agent.llm import GeminiClient
@@ -51,6 +52,14 @@ def cmd_run(args: argparse.Namespace) -> None:
     summary = runner.run(limit=args.limit)
     print(f"\nrun_id: {run_id}  log: logs/{run_id}.jsonl")
     print(json.dumps({k: v for k, v in summary.items() if k != "helpdesk_status"}, indent=2))
+
+
+def cmd_eval(args: argparse.Namespace) -> None:
+    if args.model:
+        os.environ["TICKET_AGENT_MODEL"] = args.model
+    ag, _ = agent()
+    report = run_eval(helpdesk(), ag, args.runs, args.label, refresh=args.refresh)
+    print(report.read_text(encoding="utf-8"))
 
 
 def cmd_explain(args: argparse.Namespace) -> None:
@@ -95,6 +104,12 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--dry-run", action="store_true", help="decide and log, never post")
     run.add_argument("--limit", type=int, default=None, help="only the first N open tickets")
     run.set_defaults(func=cmd_run)
+    ev = sub.add_parser("eval", help="score decide() on GET /examples, never posts")
+    ev.add_argument("--runs", type=int, default=2, help="repeat the set to see the spread")
+    ev.add_argument("--label", default="eval", help="name for the results file")
+    ev.add_argument("--model", help="override the model from config")
+    ev.add_argument("--refresh", action="store_true", help="re-fetch examples into .cache/")
+    ev.set_defaults(func=cmd_eval)
     ex = sub.add_parser("explain", help="print the logged decision for one ticket")
     ex.add_argument("ticket_id")
     ex.add_argument("--run", help="run id (file name in logs/ without .jsonl), default latest")
