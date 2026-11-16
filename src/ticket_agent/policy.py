@@ -12,7 +12,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from ticket_agent import lang
-from ticket_agent.models import LANGUAGES, ROOT, Flag, ModelDecision, Ticket
+from ticket_agent.models import LANGUAGES, ROOT, Flag, ModelDecision, Ticket, scrub
 from ticket_agent.pipeline import Result
 
 CONFIG_PATH = ROOT / "config" / "policy.yaml"
@@ -116,7 +116,7 @@ def finalize(
         "language": language,
         "category": md.category,
         "priority": md.priority,
-        "reason": md.reason,
+        "reason": scrub(md.reason),
         "confidence": cfg.confidence_scores[md.confidence],
     }
     if action == "reply":
@@ -128,7 +128,8 @@ def finalize(
             note = f"Customer wrote in a language other than Dutch, English or German. {note}"
         if blocked:
             note = f"Agent proposed {md.action}, held by rule {blocked}. {note}"
-        body["handoff_note"] = note
+        # A customer may paste a card or IBAN. The support team does not need it repeated.
+        body["handoff_note"] = scrub(note)
     record = {
         "proposed_action": md.action,
         "gate": blocked,

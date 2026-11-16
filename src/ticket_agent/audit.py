@@ -20,6 +20,11 @@ class RunLog:
             fh.write(json.dumps({"ts": datetime.now(UTC).isoformat(), **record}) + "\n")
 
 
+def latest_log(logs_dir: Path = LOGS_DIR) -> Path | None:
+    logs = sorted(logs_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime)
+    return logs[-1] if logs else None
+
+
 def read_log(path: Path) -> list[dict]:
     lines = path.read_text(encoding="utf-8").splitlines()
     return [json.loads(line) for line in lines if line.strip()]

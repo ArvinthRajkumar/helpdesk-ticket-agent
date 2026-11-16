@@ -19,6 +19,9 @@ brief/
 state/
 .cache/
 
+# Dry runs post nothing; only real run logs are committed.
+logs/*-dry.jsonl
+
 # editors
 .vscode/
 .idea/

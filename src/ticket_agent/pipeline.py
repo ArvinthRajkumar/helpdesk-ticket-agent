@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from ticket_agent.audit import RunLog
 from ticket_agent.helpdesk import Helpdesk, HelpdeskError, Invalid
 from ticket_agent.journal import Journal
-from ticket_agent.models import CATEGORIES, LANGUAGES, PRIORITIES, Ticket
+from ticket_agent.models import CATEGORIES, LANGUAGES, PRIORITIES, Ticket, scrub, scrub_all
 
 
 @dataclass
@@ -34,13 +34,14 @@ def fallback_handoff(body: dict, problems: list) -> dict:
     def pick(key: str, allowed: tuple, default: str) -> str:
         return body.get(key) if body.get(key) in allowed else default
 
+    why = scrub(str(problems))
     return {
         "language": pick("language", LANGUAGES, "nl"),
         "category": pick("category", CATEGORIES, "other"),
         "priority": pick("priority", PRIORITIES, "P3"),
         "reason": "The helpdesk rejected the agent's decision, so a human takes it.",
         "handoff_note": (
-            f"Automatic fallback: the helpdesk rejected the agent's decision ({problems}). "
+            f"Automatic fallback: the helpdesk rejected the agent's decision ({why}). "
             "Please read the ticket and handle it."
         ),
     }
@@ -60,6 +61,8 @@ class Runner:
         self.hd, self.decide, self.journal, self.log = hd, decide, journal, log
         self.run_id, self.dry_run, self.max_failures = run_id, dry_run, max_failures
         self.statuses: Counter = Counter()
+        self.actions: Counter = Counter()
+        self.cost = 0.0
 
     def post(self, ticket_id: str, action: str, body: dict) -> tuple[str, str, dict]:
         """Journal, then post. Returns (status, action, body) as finally sent. A HelpdeskError
@@ -86,7 +89,9 @@ class Runner:
         line["api"] = {"calls": self.hd.calls, "events": self.hd.events, "status": status}
         line["latency_ms"] = int((time.perf_counter() - started) * 1000)
         self.statuses[status] += 1
-        self.log.write({"run_id": self.run_id, **line})
+        self.actions[line.get("action")] += 1
+        self.cost += line.get("cost_usd") or 0.0
+        self.log.write(scrub_all({"run_id": self.run_id, **line}))
         print(f"{line['ticket_id']}: {line.get('action')} ({status})")
 
     def recover(self) -> None:
@@ -147,4 +152,12 @@ class Runner:
                 # The same cause usually fails every ticket. Stop; a re-run picks up the rest.
                 print(f"Stopping: {failures} hard failures in a row. Fix the cause and re-run.")
                 break
-        return {"helpdesk_status": status, "statuses": dict(self.statuses)}
+        n = sum(self.actions.values())
+        return {
+            "helpdesk_status": status,
+            "tickets": n,
+            "actions": dict(self.actions),
+            "statuses": dict(self.statuses),
+            "cost_usd": round(self.cost, 6),
+            "cost_per_100_usd": round(self.cost / n * 100, 4) if n else 0.0,
+        }

@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 
 from dotenv import load_dotenv
 
-from ticket_agent.audit import RunLog
+from ticket_agent.audit import LOGS_DIR, RunLog, latest_log, read_log
 from ticket_agent.decide import Agent
 from ticket_agent.helpdesk import Fatal, Helpdesk, Settings
 from ticket_agent.journal import Journal
@@ -50,7 +50,24 @@ def cmd_run(args: argparse.Namespace) -> None:
     )
     summary = runner.run(limit=args.limit)
     print(f"\nrun_id: {run_id}  log: logs/{run_id}.jsonl")
-    print(json.dumps(summary["statuses"], indent=2))
+    print(json.dumps({k: v for k, v in summary.items() if k != "helpdesk_status"}, indent=2))
+
+
+def cmd_explain(args: argparse.Namespace) -> None:
+    path = LOGS_DIR / f"{args.run}.jsonl" if args.run else latest_log()
+    if path is None or not path.exists():
+        sys.exit("No run log found under logs/.")
+    lines = [x for x in read_log(path) if x["ticket_id"] == args.ticket_id]
+    if not lines:
+        sys.exit(f"{args.ticket_id} is not in {path.name}")
+    for line in lines:
+        print(f"# {args.ticket_id} in {path.stem}")
+        for key, value in line.items():
+            if value in (None, "", [], {}):
+                continue
+            if isinstance(value, dict | list):
+                value = json.dumps(value, ensure_ascii=False)
+            print(f"- {key}: {value}")
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -78,6 +95,10 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--dry-run", action="store_true", help="decide and log, never post")
     run.add_argument("--limit", type=int, default=None, help="only the first N open tickets")
     run.set_defaults(func=cmd_run)
+    ex = sub.add_parser("explain", help="print the logged decision for one ticket")
+    ex.add_argument("ticket_id")
+    ex.add_argument("--run", help="run id (file name in logs/ without .jsonl), default latest")
+    ex.set_defaults(func=cmd_explain)
     st = sub.add_parser("status", help="show the helpdesk mode and open ticket count")
     st.set_defaults(func=cmd_status)
     rs = sub.add_parser("reset", help="re-open all practice tickets (POST /practice/reset)")

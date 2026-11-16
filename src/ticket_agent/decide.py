@@ -13,6 +13,8 @@ from ticket_agent.pipeline import Result
 
 PROMPT_PATH = ROOT / "prompts" / "decide.md"
 FAQ_PATH = ROOT / "data" / "faq.md"
+# Characters of the English back-translation kept in the log line. Never sent to anyone.
+BACK_TRANSLATION_EXCERPT = 300
 
 
 def load_faq(path: Path = FAQ_PATH) -> tuple[str, dict[str, str]]:
@@ -88,8 +90,13 @@ class Agent:
             result = policy.finalize(md, ticket, self.cfg, set(self.faq))
             if result.action == "reply":
                 checks = run_checks(
-                    self.client, self.cfg, md.draft_reply, md.language, md.faq_ids,
-                    self.faq, self.faq_text,
+                    self.client,
+                    self.cfg,
+                    md.draft_reply,
+                    md.language,
+                    md.faq_ids,
+                    self.faq,
+                    self.faq_text,
                 )
                 calls += checks.calls
                 if checks.failure:
@@ -97,7 +104,7 @@ class Agent:
                 result.record.update(
                     {
                         "checks": {k: v or "pass" for k, v in checks.results.items()},
-                        "back_translation": checks.back_translation,
+                        "back_translation": checks.back_translation[:BACK_TRANSLATION_EXCERPT],
                         "unsupported_claims": checks.unsupported_claims,
                         "check_prompt_versions": checks.versions,
                     }

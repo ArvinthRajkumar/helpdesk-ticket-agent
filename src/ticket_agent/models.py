@@ -97,5 +97,19 @@ def has_payment_details(text: str) -> bool:
 
 
 def scrub(text: str) -> str:
-    """Drop email addresses from model text before it reaches the log."""
-    return EMAIL.sub("[email]", text)
+    """Mask email addresses, IBANs and card numbers. Applied to every string we log and to
+    the reason and handoff note we post, so the client's payment rule holds by construction."""
+    for card in card_numbers(text):
+        text = text.replace(card, "[card]")
+    return EMAIL.sub("[email]", IBAN.sub("[iban]", text))
+
+
+def scrub_all(value):
+    """scrub() on every string inside a log record, however deeply nested."""
+    if isinstance(value, str):
+        return scrub(value)
+    if isinstance(value, dict):
+        return {k: scrub_all(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [scrub_all(v) for v in value]
+    return value
