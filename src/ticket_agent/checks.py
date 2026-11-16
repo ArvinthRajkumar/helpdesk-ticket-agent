@@ -5,6 +5,7 @@ Code checks first, cheap and exact:
   numbers    every number in the reply appears in a cited FAQ entry
   paths      every quoted menu name, every menu path step and every address appears in faq.md
   payment    no IBAN or card number
+  ticket_details  no name or company copied from the ticket
 Then two model calls, only when the code checks pass:
   back_translation  an English rendering, stored in the log and never sent
   judge             claims in the reply that the cited entries do not support
@@ -55,7 +56,32 @@ def _flat(text: str) -> str:
     return re.sub(r"\s+", " ", text)
 
 
-def code_checks(reply: str, language: str, cited: list[str], faq: dict[str, str], faq_text: str):
+def _ticket_details(reply: str, language: str, ticket_text: str, faq_text: str) -> int:
+    """Capitalised words the reply took from the ticket and the FAQ does not contain: a name,
+    a company, a product. Sentence-initial words are skipped. German capitalises every noun,
+    so there only the word right after the greeting (where a name would go) is checked."""
+    found = 0
+    for i, m in enumerate(re.finditer(r"\b[A-ZÀ-Ý][\w-]{2,}", reply)):
+        before = reply[: m.start()].rstrip(" \t")
+        if not before or before[-1] in ".!?:\n":
+            continue
+        if language == "de" and i > 1:
+            break
+        word = m.group(0)
+        in_ticket = re.search(rf"\b{re.escape(word)}\b", ticket_text)
+        if in_ticket and word not in faq_text:
+            found += 1
+    return found
+
+
+def code_checks(
+    reply: str,
+    language: str,
+    cited: list[str],
+    faq: dict[str, str],
+    faq_text: str,
+    ticket_text: str = "",
+):
     """Name -> None when it passes, or a short English problem when it fails."""
     sources = " ".join(faq.get(i, "") for i in cited)
     flat_faq = _flat(faq_text)
@@ -87,6 +113,11 @@ def code_checks(reply: str, language: str, cited: list[str], faq: dict[str, str]
     results["paths"] = "; ".join(problems) or None
 
     results["payment"] = "payment details in reply" if has_payment_details(reply) else None
+
+    # The count only, never the words: they are usually the customer's name.
+    copied = _ticket_details(reply, language, ticket_text, faq_text)
+    problem = f"reply repeats {copied} name(s) from the ticket"
+    results["ticket_details"] = problem if copied else None
     return results
 
 
@@ -104,9 +135,16 @@ class CheckRun:
 
 
 def run_checks(
-    client: Client, cfg, reply: str, language: str, cited: list[str], faq: dict, faq_text: str
+    client: Client,
+    cfg,
+    reply: str,
+    language: str,
+    cited: list[str],
+    faq: dict,
+    faq_text: str,
+    ticket_text: str,
 ) -> CheckRun:
-    run = CheckRun(code_checks(reply, language, cited, faq, faq_text))
+    run = CheckRun(code_checks(reply, language, cited, faq, faq_text, ticket_text))
     if run.failure:
         return run  # no point paying for model checks on a reply that is already held
     wrapped = "<reply>\n" + reply.replace("</reply", "<\\/reply") + "\n</reply>"

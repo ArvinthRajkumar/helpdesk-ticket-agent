@@ -100,6 +100,7 @@ class Agent:
                     md.faq_ids,
                     self.faq,
                     self.faq_text,
+                    ticket.text,
                 )
                 calls += checks.calls
                 if checks.failure:

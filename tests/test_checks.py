@@ -23,6 +23,7 @@ def test_grounded_dutch_reply_passes_every_code_check() -> None:
         "numbers": None,
         "paths": None,
         "payment": None,
+        "ticket_details": None,
     }
 
 
@@ -86,3 +87,25 @@ def test_card_detection_uses_luhn() -> None:
     not_a_card = card[:-1] + str((int(card[-1]) + 1) % 10)
     assert card_numbers(f"order {not_a_card}") == []
     assert has_payment_details(spaced) and not has_payment_details("factuur 2026-10")
+
+
+TICKET = "Hallo, ik ben Sanne Vermeer van Bakkerij Zonnig. Waar vind ik Rooster → Verzoeken?"
+
+
+def test_name_or_company_copied_from_the_ticket_fails_without_logging_it() -> None:
+    reply = "Hoi Sanne, je vindt dit onder Rooster → Verzoeken. Roosterly Support"
+    problem = code_checks(reply, "nl", ["F03"], FAQ, FAQ_TEXT, TICKET)["ticket_details"]
+    assert problem == "reply repeats 1 name(s) from the ticket" and "Sanne" not in problem
+
+
+def test_menu_names_from_the_faq_are_not_ticket_details() -> None:
+    reply = "Hoi, je vindt dit onder Rooster → Verzoeken. Roosterly Support"
+    assert code_checks(reply, "nl", ["F03"], FAQ, FAQ_TEXT, TICKET)["ticket_details"] is None
+
+
+def test_german_nouns_are_not_names_but_a_greeting_name_is() -> None:
+    ticket = "Guten Tag, hier ist Jonas. Wie kann ich die Sprache der Mitarbeiter ändern?"
+    nouns = "Hallo, jeder Nutzer wählt die Sprache für die Mitarbeiter selbst. Roosterly Support"
+    assert code_checks(nouns, "de", ["F08"], FAQ, FAQ_TEXT, ticket)["ticket_details"] is None
+    named = "Hallo Jonas, jeder Nutzer wählt die Sprache selbst. Roosterly Support"
+    assert code_checks(named, "de", ["F08"], FAQ, FAQ_TEXT, ticket)["ticket_details"]
