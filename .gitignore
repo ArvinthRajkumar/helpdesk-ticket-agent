@@ -12,10 +12,12 @@ __pycache__/
 .ruff_cache/
 dist/
 
-# run artifacts: only the one sample run is committed, see README
-runs/*
-!runs/.gitkeep
-!runs/sample/
+# The assignment pack stays local. The agent's own copy of the FAQ is data/faq.md.
+brief/
+
+# Write-ahead journal and cached /examples: runtime state, never committed.
+state/
+.cache/
 
 # editors
 .vscode/

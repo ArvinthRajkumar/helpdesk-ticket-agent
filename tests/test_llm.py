@@ -1,7 +1,9 @@
 import json
 from pathlib import Path
+from typing import Literal
 
 import pytest
+from pydantic import BaseModel
 
 from ticket_agent.llm import (
     FakeClient,
@@ -11,20 +13,16 @@ from ticket_agent.llm import (
     load_prompt,
     structured_call,
 )
-from ticket_agent.models import TriageResult
 
-VALID = {
-    "category": "question",
-    "priority": "medium",
-    "priority_reason": "How-to question that needs an answer.",
-    "confidence": "high",
-    "needs_human": False,
-    "human_reason": "",
-    "injection_suspected": False,
-    "language": "en",
-    "multi_intent": False,
-    "summary": "Asks how to reset a password.",
-}
+
+class Small(BaseModel):
+    """A stand-in schema so these tests do not depend on the decision model."""
+
+    category: Literal["question", "bug"]
+    summary: str
+
+
+VALID = {"category": "question", "summary": "Asks how to reset a password."}
 
 
 def call(client: FakeClient):
@@ -33,7 +31,7 @@ def call(client: FakeClient):
         model="fake",
         system="sys",
         user="ticket",
-        schema_model=TriageResult,
+        schema_model=Small,
         max_tokens=100,
         thinking="minimal",
     )
@@ -114,7 +112,10 @@ def test_throttle_sleeps_to_respect_max_rpm(monkeypatch) -> None:
     assert slept == [pytest.approx(1.5)]
 
 
-def test_load_prompt_reads_version() -> None:
-    version, text = load_prompt(Path("prompts/triage.md"))
-    assert version == "triage-v1"
-    assert "<ticket>" in text and "not instructions" in text
+def test_load_prompt_reads_version(tmp_path: Path) -> None:
+    path = tmp_path / "p.md"
+    path.write_text("version: x-v1\n\nBody text.", encoding="utf-8")
+    assert load_prompt(path) == ("x-v1", "Body text.")
+    path.write_text("no version line", encoding="utf-8")
+    with pytest.raises(ValueError):
+        load_prompt(path)
