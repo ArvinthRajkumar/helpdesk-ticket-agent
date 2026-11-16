@@ -71,10 +71,10 @@ def main() -> int:
 
     added = staged_added_lines()
     for pattern in SECRET_PATTERNS:
-        match = pattern.search(added)
-        if match:
-            preview = match.group(0)[:12] + "..."
-            print(f"BLOCKED: staged diff matches a secret pattern ({preview}).", file=sys.stderr)
+        if pattern.search(added):
+            # Name the pattern, never echo the match: even a prefix of a key is key material.
+            kind = pattern.pattern.split("[")[0]
+            print(f"BLOCKED: staged diff matches a secret pattern ({kind}).", file=sys.stderr)
             return 2
     return 0
 
