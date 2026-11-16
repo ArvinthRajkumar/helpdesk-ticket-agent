@@ -14,15 +14,22 @@ wrong reply reaches a real customer, so every safety gate is code, not prompt.
 - `uv run ticket-agent reset --yes` re-opens practice tickets. Never call it from code or `run`.
 - `uv run pytest -q` and `uv run ruff check .` must pass before every commit.
 
-## Architecture (read in this order)
+## Code map
 
-1. `models.py`: Ticket, ModelDecision, the client-rule flags, payment and email scrubbing.
-2. `helpdesk.py`: the only module doing HTTP. Limiter, 503 and 429 retries, 409, 422, 401.
-3. `journal.py` and `pipeline.py`: write-ahead journal in state/, then recover, decide, journal, act, log.
-4. `llm.py`: the only module importing google-genai. One structured call, one schema retry.
-5. `decide.py`: the model step. `policy.py`: deterministic gates, config in `config/policy.yaml`.
-6. `checks.py`: language, numbers, paths, payment, back-translation and judge on every reply.
-7. `audit.py` (one line per ticket), `cost.py` (`config/pricing.yaml`), `evaluate.py`, `cli.py`.
+1. `cli.py` loads .env, builds the clients and calls `Runner.run` in `pipeline.py`.
+2. `pipeline.py` reads GET /status, settles pending journal intents (`journal.py`), fetches open tickets (`helpdesk.py`).
+3. Per ticket: `decide.py` asks Gemini once (`llm.py`, prompt `prompts/decide.md`, FAQ `data/faq.md`).
+4. `policy.py` gates the proposal; a surviving reply runs `checks.py` (code checks, back-translation, judge).
+5. `pipeline.py` journals the intent, `helpdesk.py` posts it, the journal records the result.
+6. `audit.py` writes one scrubbed line to logs/<run_id>.jsonl; `cost.py` prices it from `config/pricing.yaml`.
+7. `evaluate.py` runs steps 3 and 4 on GET /examples and never posts.
+
+Where to change what:
+- New keyword for a client rule: `sensitive_keywords` in `config/policy.yaml`.
+- New language: `LANGUAGES` in `models.py`, the word list in `lang.py`, the `language` Literal in `ModelDecision`, `prompts/decide.md`. The API only accepts nl, en and de today.
+- Confidence threshold: the `confidence != "high"` line in `policy.gate`; the posted numbers are `confidence_scores` in `config/policy.yaml`.
+- Priority rule: the P1 to P4 rubric in `prompts/decide.md`. Priority is the model's call, code does not change it.
+- What gets closed: the close branch of `policy.gate` (category other, high confidence, no FAQ id, no flag or injection) and the close line in `prompts/decide.md`.
 
 ## Conventions
 
