@@ -220,7 +220,13 @@ class Helpdesk:
                 return "already_handled"
             except httpx.TransportError:
                 self.events.append("post_ambiguous")
-                if self.ticket(ticket_id).get("handled"):
+                try:
+                    handled = self.ticket(ticket_id).get("handled")
+                except httpx.TransportError:
+                    # Cannot tell whether the post landed. The journal intent stays pending and
+                    # the next run settles it with a GET, so this is safe to give up on.
+                    break
+                if handled:
                     return "confirmed_after_timeout"
         raise HelpdeskError(0, "network_unavailable")
 

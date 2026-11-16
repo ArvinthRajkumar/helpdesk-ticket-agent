@@ -138,3 +138,11 @@ def test_limiter_spaces_requests() -> None:
     for _ in range(5):
         lim.wait()
     assert slept == [pytest.approx(0.25)] * 4
+
+
+def test_network_down_during_the_confirming_get_is_a_helpdesk_error() -> None:
+    down = [httpx.ConnectError("x")] * 4  # the POST, then the GET and its retries
+    hd, _ = client(down)
+    with pytest.raises(HelpdeskError) as exc:
+        hd.act("T1", "reply", BODY)
+    assert exc.value.code == "network_unavailable"
