@@ -48,12 +48,12 @@ Practice run `logs/20261116-102739.jsonl`: one 503 was retried and all 30 ticket
 
 Nordavo's 10 labelled examples, two runs each (`evals/results/`):
 
-| | baseline | language fix | + restated details |
-|---|---|---|---|
-| unsafe replies | 0, 0 | 0, 0 | 0, 0 |
-| good replies (of 6) | 4, 5 | 2, 4 | 4, 4 |
-| language | 90%, 90% | 100%, 100% | 100%, 100% |
-| action | 80%, 90% | 60%, 80% | 80%, 80% |
+| | baseline | language fix | + restated details | after review fixes |
+|---|---|---|---|---|
+| unsafe replies | 0, 0 | 0, 0 | 0, 0 | 0, 0 |
+| good replies (of 6) | 4, 5 | 2, 4 | 4, 4 | 4, 5 |
+| language | 90%, 90% | 100%, 100% | 100%, 100% | 100%, 100% |
+| action | 80%, 90% | 60%, 80% | 80%, 80% | 80%, 90% |
 
 **The fix:** an English ticket was labelled `nl` and drafted in Dutch. The language check passed it because it compared the reply with that same wrong label. Code now holds the reply when the detector reads the ticket differently. A follow-up stopped drafts from repeating customer details, which the checks had been holding.
 
