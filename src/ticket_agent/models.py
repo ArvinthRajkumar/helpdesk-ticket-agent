@@ -12,8 +12,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class Ticket(BaseModel):
     id: str
-    subject: str
-    body: str
+    subject: str = ""
+    body: str = ""
+    # Context for the model. Replies still come only from the FAQ.
+    channel: str | None = None
+    customer_plan: str | None = None
+    received_at: str | None = None
 
     @property
     def text(self) -> str:
