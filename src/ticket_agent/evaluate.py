@@ -12,7 +12,7 @@ from pathlib import Path
 
 from ticket_agent.decide import Agent
 from ticket_agent.helpdesk import Helpdesk
-from ticket_agent.models import ROOT, Ticket
+from ticket_agent.models import ROOT, Ticket, scrub_all
 
 CACHE = ROOT / ".cache" / "examples.json"
 EVALS_DIR = ROOT / "evals"
@@ -45,7 +45,10 @@ def score_once(examples: list[dict], agent: Agent) -> list[dict]:
                 "flags": r.get("flags", []),
                 "keyword_hits": r.get("keyword_hits", []),
                 "faq_ids": r.get("faq_ids", []),
-                "checks": r.get("checks", {}),
+                # Outcome only: a failure message can quote reply text derived from the example.
+                "checks": {
+                    k: "pass" if v == "pass" else "fail" for k, v in r.get("checks", {}).items()
+                },
                 "confidence": result.body.get("confidence"),
                 "fallback": r.get("fallback", False),
                 "cost_usd": r.get("cost_usd") or 0.0,
@@ -141,7 +144,7 @@ def run_eval(hd: Helpdesk, agent: Agent, runs: int, label: str, refresh: bool = 
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     results = EVALS_DIR / "results" / f"{stamp}-{label}.json"
     results.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"label": label, "model": agent.cfg.model, "runs": all_rows}
+    payload = scrub_all({"label": label, "model": agent.cfg.model, "runs": all_rows})
     results.write_text(json.dumps(payload, indent=1), encoding="utf-8", newline="\n")
     report = EVALS_DIR / "report.md"
     text = render(all_rows, agent.cfg.model, label)
