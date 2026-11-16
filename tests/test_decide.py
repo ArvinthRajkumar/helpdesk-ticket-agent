@@ -2,7 +2,7 @@
 
 import json
 
-from ticket_agent.decide import Agent, load_faq, user_message, wrap_ticket
+from ticket_agent.decide import FAQ_PATH, Agent, load_faq, user_message, wrap_ticket
 from ticket_agent.lang import detect
 from ticket_agent.llm import FakeClient, fake_api_error
 from ticket_agent.models import Ticket
@@ -115,3 +115,11 @@ def test_detector_separates_the_three_languages() -> None:
     assert detect("How can I add a new employee to the schedule?") == "en"
     assert detect("Wie kann ich einen neuen Mitarbeiter hinzufügen? Danke und Grüße") == "de"
     assert detect("") is None and detect("ok") is None
+
+
+def test_prompt_limits_replies_to_what_the_cited_entry_says() -> None:
+    # The judge holds a draft that says a feature is missing or that the customer can post
+    # ideas, because no entry says so. The prompt must ask for exactly that restraint.
+    prompt = (FAQ_PATH.parent.parent / "prompts" / "decide.md").read_text(encoding="utf-8")
+    assert "Say what the product does or lacks only when an entry says so." in prompt
+    assert "do not say whether the feature exists" in prompt
