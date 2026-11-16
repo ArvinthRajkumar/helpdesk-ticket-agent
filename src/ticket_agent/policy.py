@@ -5,13 +5,14 @@ that fired, so the log and `explain` show exactly why a ticket went where it did
 """
 
 import os
+import re
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, Field
 
 from ticket_agent import lang
-from ticket_agent.models import ROOT, ModelDecision, Ticket
+from ticket_agent.models import LANGUAGES, ROOT, Flag, ModelDecision, Ticket
 from ticket_agent.pipeline import Result
 
 CONFIG_PATH = ROOT / "config" / "policy.yaml"
@@ -27,9 +28,18 @@ class Config(BaseModel):
     max_consecutive_failures: int
     confidence_scores: dict[str, float]
     default_language: str
+    sensitive_keywords: dict[Flag, list[str]]
 
     def thinking_for(self, model: str) -> str:
         return self.thinking_level_by_model.get(model, self.thinking_level)
+
+    def keyword_hits(self, text: str) -> list[str]:
+        """Flags whose backstop pattern matches. The model's own flags are checked separately."""
+        return [
+            str(flag)
+            for flag, patterns in self.sensitive_keywords.items()
+            if any(re.search(p, text, re.IGNORECASE) for p in patterns)
+        ]
 
 
 def load_config(path: Path = CONFIG_PATH) -> Config:
@@ -51,28 +61,50 @@ def fallback(ticket: Ticket, error: str, cfg: Config) -> Result:
             f"({error.split(':')[0]}). Please read the ticket and handle it."
         ),
     }
-    return Result("handoff", body, {"fallback": True, "gate": "model_failed"}, hard_failure=True)
+    record = {
+        "fallback": True,
+        "gate": "model_failed",
+        "keyword_hits": cfg.keyword_hits(ticket.text),
+    }
+    return Result("handoff", body, record, hard_failure=True)
 
 
-def gate(md: ModelDecision) -> str | None:
-    """The first rule that forbids the model's action, or None if it stands."""
-    if md.action == "reply":
-        if md.confidence != "high":
-            return "reply_not_confident"
-        if not md.faq_ids:
-            return "reply_without_faq"
-        if not md.draft_reply.strip():
-            return "reply_empty"
-    if md.action == "close" and md.confidence != "high":
-        return "close_not_confident"
+def gate(md: ModelDecision, flags: list[str], faq_ids: set[str]) -> str | None:
+    """The first rule that forbids the model's action, or None if it stands. Handoff is
+    always allowed. Order: client rules, injection, language, then per-action checks."""
+    if md.action == "handoff":
+        return None
+    if flags:
+        return f"client_rule_{flags[0]}"
+    if md.injection_suspected:
+        return "injection_suspected"
+    if md.language not in LANGUAGES:
+        return "language_not_supported"
+    if md.confidence != "high":
+        return f"{md.action}_not_confident"
+    if md.action == "close":
+        # Close is for spam and empty tickets only. Anything with a real category is answered.
+        return None if md.category == "other" else "close_needs_category_other"
+    if not md.faq_ids:
+        return "reply_without_faq"
+    unknown = [i for i in md.faq_ids if i not in faq_ids]
+    if unknown:
+        return f"reply_cites_unknown_faq_{unknown[0]}"
+    if not md.draft_reply.strip():
+        return "reply_empty"
     return None
 
 
-def finalize(md: ModelDecision, cfg: Config) -> Result:
-    blocked = gate(md)
+def finalize(md: ModelDecision, ticket: Ticket, cfg: Config, faq_ids: set[str]) -> Result:
+    hits = cfg.keyword_hits(ticket.text)
+    flags = list(dict.fromkeys([str(f) for f in md.sensitive] + hits))
+    blocked = gate(md, flags, faq_ids)
     action = "handoff" if blocked else md.action
+    # The API only accepts nl, en and de. Another language is always a handoff, posted as en
+    # with the real situation in the note.
+    language = md.language if md.language in LANGUAGES else "en"
     body = {
-        "language": md.language,
+        "language": language,
         "category": md.category,
         "priority": md.priority,
         "reason": md.reason,
@@ -83,13 +115,16 @@ def finalize(md: ModelDecision, cfg: Config) -> Result:
     if action == "handoff":
         # The model may leave the note empty when it proposed a reply. The reason is English too.
         note = md.handoff_note.strip() or md.reason
+        if md.language not in LANGUAGES:
+            note = f"Customer wrote in a language other than Dutch, English or German. {note}"
         if blocked:
             note = f"Agent proposed {md.action}, held by rule {blocked}. {note}"
         body["handoff_note"] = note
     record = {
         "proposed_action": md.action,
         "gate": blocked,
-        "flags": [str(f) for f in md.sensitive],
+        "flags": flags,
+        "keyword_hits": hits,
         "injection_suspected": md.injection_suspected,
         "faq_ids": md.faq_ids,
         "confidence_level": md.confidence,

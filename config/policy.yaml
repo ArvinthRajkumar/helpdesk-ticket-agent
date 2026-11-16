@@ -32,3 +32,65 @@ confidence_scores:
 # Fallback handoff when the model is unavailable and the detector cannot tell the language.
 # Most of the client's customers write Dutch.
 default_language: nl
+
+# Keyword backstop for the client's always-handoff rules. If any pattern matches the ticket
+# subject or body, the ticket is handed off even when the model did not raise the flag.
+# Python regular expressions, matched case-insensitively. Dutch and English, a few German.
+# Written by hand from the client's rules, not from any ticket. Coverage is untested: it will
+# miss phrasings and it will also fire on some harmless tickets, which then go to a human.
+sensitive_keywords:
+  refund_or_dispute:
+    - '\bterugbetal\w*'
+    - '\bgeld\s+terug\b'
+    - '\bterug\s*storten\b|\bterugstort\w*'
+    - '\bcreditnota\b|\bcrediteren\b'
+    - '\bonterecht\s+(afgeschreven|gefactureerd|in\s+rekening)'
+    - '\b(dubbel|twee\s*keer)\s+(afgeschreven|betaald|gefactureerd)'
+    - '\bstorn\w*'
+    - '\brefund\w*'
+    - '\bmoney\s+back\b'
+    - '\bchargeback\b'
+    - '\b(charged\s+twice|double\s+charged|wrongly\s+charged|overcharged)\b'
+    - '\bdisput\w*'
+    - '\brückerstattung\b|\bgeld\s+zurück\b'
+  cancellation_or_contract:
+    - '\bopzeg\w*'
+    - '\b(contract|abonnement)\w*\s+(\w+\s+)?(beëindigen|stopzetten|annuleren|wijzigen|ontbinden)\b'
+    - '\b(beëindig|ontbind)\w*\s+(\w+\s+)?(contract|abonnement)\b'
+    - '\bdowngrad\w*'
+    - '\b(cancel|terminate|end)\w*\s+(my|our|the)\s+(subscription|account|contract|plan)\b'
+    - '\bkündig\w*'
+  personal_data_request:
+    - '\bavg\b|\bgdpr\b|\bdsgvo\b'
+    - '\bpersoonsgegevens\b'
+    - '\binzageverzoek\w*|\bverzoek\s+tot\s+inzage\b'
+    - '\b(gegevens|data)\s+(laten\s+)?(verwijderen|wissen|inzien|opvragen)\b'
+    - '\b(verwijder|wis)\w*\s+(al\s+)?(mijn|onze|zijn|haar|hun)\s+(gegevens|data)\b'
+    - '\bright\s+to\s+be\s+forgotten\b'
+    - '\b(delete|erase|export)\s+(my|our|all|his|her)\s+(personal\s+)?data\b'
+    - '\bpersonal\s+data\b|\bsubject\s+access\s+request\b'
+  security_incident:
+    - '\bgehackt\w*|\bhacked\b|\bhack\b'
+    - '\bdatalek\w*|\bdata\s*breach\w*|\blek\s+in\b'
+    - '\bonbevoegd\w*|\bunauthori[sz]ed\b'
+    - '\bverdacht\w*\s+(inlog\w*|login\w*|activiteit\w*)'
+    - '\bsuspicious\s+(login|sign-?in|activity)\b'
+    - '\bphishing\b'
+    - '\b(gelekt|uitgelekt|leaked)\b'
+    - '\bingelogd\s+(door|vanaf)\s+(iemand|een\s+onbekend\w*)'
+  legal_threat:
+    - '\badvoca\w*'
+    - '\bjuridische\s+stappen\b'
+    - '\brechtszaak\b|\brechter\b|\bdagvaard\w*'
+    - '\baansprakelijk\w*'
+    - '\bingebrekestelling\b'
+    - '\bautoriteit\s+persoonsgegevens\b'
+    - '\blawyer\b|\battorney\b|\blegal\s+action\b|\bsue\b|\blawsuit\b|\bliable\b'
+    - '\banwalt\b'
+  churn_threat:
+    - '\boverstap\w*'
+    - '\bconcurrent\w*|\bcompetitor\w*'
+    - '\bandere\s+(aanbieder|leverancier|software|app|tool|pakket)\b'
+    - '\b(we|wij|ik)\s+(gaan|stoppen|vertrekken)\s+(weg|ermee)\b'
+    - '\bswitch\w*\s+to\s+(another|a\s+different|a\s+competitor)\b'
+    - '\bleave\s+roosterly\b|\blooking\s+for\s+(an\s+)?alternative'

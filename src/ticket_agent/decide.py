@@ -83,7 +83,7 @@ class Agent:
             result = policy.fallback(ticket, outcome.error or "unknown", self.cfg)
             result.record["model_error"] = outcome.error
         else:
-            result = policy.finalize(outcome.parsed, self.cfg)
+            result = policy.finalize(outcome.parsed, ticket, self.cfg, set(self.faq))
         result.record.update(
             {
                 "model": self.cfg.model,
