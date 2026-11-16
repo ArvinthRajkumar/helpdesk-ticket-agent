@@ -120,3 +120,9 @@ def test_german_nouns_are_not_names_but_a_greeting_name_is() -> None:
     assert code_checks(own, "de", ["F08"], FAQ, FAQ_TEXT, ticket)["ticket_details"] is None
     other = "Hallo Lukas, jeder Nutzer wählt die Sprache selbst. Roosterly Support"
     assert code_checks(other, "de", ["F08"], FAQ, FAQ_TEXT, ticket)["ticket_details"]
+
+
+def test_german_noun_from_the_ticket_right_after_the_greeting_passes() -> None:
+    ticket = "Wie können Mitarbeiter die Sprache ändern?"
+    reply = "Hallo, Mitarbeiter wählen die Sprache selbst. Roosterly Support"
+    assert code_checks(reply, "de", ["F08"], FAQ, FAQ_TEXT, ticket)["ticket_details"] is None

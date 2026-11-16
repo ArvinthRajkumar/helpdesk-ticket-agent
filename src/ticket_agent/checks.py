@@ -70,14 +70,15 @@ def _ticket_details(reply: str, language: str, ticket_text: str, faq_text: str) 
     greeting = GREETING_NAME.match(reply)
     if greeting and not re.search(rf"\b{re.escape(greeting.group(1))}\b", ticket_text):
         found += 1
-    for i, m in enumerate(re.finditer(r"\b[A-ZÀ-Ý][\w-]{2,}", reply)):
+    if language == "de":
+        # A noun right after "Hallo," (Mitarbeiter, Schichten) is the ticket's topic, not a name.
+        return found
+    for m in re.finditer(r"\b[A-ZÀ-Ý][\w-]{2,}", reply):
         if greeting and m.start() == greeting.start(1):
             continue  # the greeting slot was judged above
         before = reply[: m.start()].rstrip(" \t")
         if not before or before[-1] in ".!?:\n":
             continue
-        if language == "de" and i > 1:
-            break
         word = m.group(0)
         in_ticket = re.search(rf"\b{re.escape(word)}\b", ticket_text)
         if in_ticket and word not in faq_text:
